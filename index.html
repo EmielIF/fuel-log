@@ -541,7 +541,7 @@
 <script>
   // ──────────────────────────────────────────────────────────────
   // PASTE YOUR APPS SCRIPT WEB APP URL HERE, between the quotes:
-  const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbxIwSLINCii0ktt7adPDeT-Xno5NivpptTmZWWbTLcoy6H9JHAD2q3dnNPsZaU55R7Pmw/exec";
+  const FUEL_API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
   // ──────────────────────────────────────────────────────────────
 
   function formatNum(n, digits = 1) {
@@ -727,16 +727,18 @@
 
     const byType = { E95: { dist: 0, liters: 0, spent: 0, count: 0 }, E98: { dist: 0, liters: 0, spent: 0, count: 0 } };
 
-    // Consumption: only count a stretch between two consecutive full
-    // fill-ups when the LATER fill-up (the one whose liters we're
-    // measuring) is of that fuel type, since that's the tank that was
-    // actually consumed over that stretch.
+    // Consumption: a stretch between two consecutive full fill-ups burns
+    // whatever fuel was put in at the START of that stretch (prev), since
+    // that's what was sitting in the tank while you drove it. The
+    // distance and liters-to-refill both come from that same stretch
+    // (cur.mileage - prev.mileage, and cur.liters), but the fuel TYPE
+    // responsible for that consumption is prev.fuelType, not cur's.
     for (let i = 1; i < fullFillUps.length; i++) {
       const prev = fullFillUps[i - 1];
       const cur = fullFillUps[i];
       const dist = cur.mileage - prev.mileage;
       if (dist <= 0) continue;
-      const type = cur.fuelType;
+      const type = prev.fuelType;
       if (type !== 'E95' && type !== 'E98') continue;
       byType[type].dist += dist;
       byType[type].liters += cur.liters;
