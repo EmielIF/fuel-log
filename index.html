@@ -135,6 +135,57 @@
     margin-bottom: 24px;
   }
 
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .compare-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .compare-card.winner { border-color: var(--accent); }
+
+  .compare-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .compare-title span:first-child {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .compare-winner-tag {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  .compare-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+  }
+  .compare-row:first-of-type { border-top: none; }
+  .compare-row-label {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .compare-row-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
   .stat-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -224,6 +275,38 @@
   }
   .checkbox-row span { font-size: 13px; color: #a8acb5; }
   input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  .fuel-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .fuel-option {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .fuel-option.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(247, 147, 62, 0.08);
+  }
+  .fuel-badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .fuel-badge.e95 { color: #7dd3a0; border: 1px solid #2a4a36; }
+  .fuel-badge.e98 { color: #f7933e; border: 1px solid #4a3520; }
+  .fuel-badge.unknown { color: var(--muted); border: 1px solid var(--border); }
 
   .error {
     font-size: 12px;
@@ -328,6 +411,7 @@
   @media (max-width: 420px) {
     .stats { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
+    .compare-grid { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -373,6 +457,11 @@
     </div>
   </div>
 
+  <div id="fuelCompare" style="display:none; margin-bottom: 24px;">
+    <div class="list-label">Euro95 vs Euro98</div>
+    <div class="compare-grid" id="compareGrid"></div>
+  </div>
+
   <form class="panel" id="entryForm">
     <button type="button" class="close-btn" id="closeFormBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -401,6 +490,14 @@
       </div>
     </div>
 
+    <div style="margin-bottom: 16px;">
+      <label>Fuel type</label>
+      <div class="fuel-toggle" id="fuelToggle">
+        <button type="button" class="fuel-option active" data-fuel="E95">Euro95</button>
+        <button type="button" class="fuel-option" data-fuel="E98">Euro98</button>
+      </div>
+    </div>
+
     <label class="checkbox-row">
       <input type="checkbox" id="full" checked />
       <span>Filled the tank completely</span>
@@ -420,7 +517,7 @@
 <script>
   // ──────────────────────────────────────────────────────────────
   // PASTE YOUR APPS SCRIPT WEB APP URL HERE, between the quotes:
-  const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbwOWHfNJr8bqxsdRUsRPNNdgitNdQIZ6InaaMyC1Z6W5F0NwgpEpMmQqkUhzZ9ijDcr2Q/exec";
+  const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbwMAl5u7gBobcrbakVu4ClDyWTZ_fgBrZSBXl1WIpd_hEmuRcsylN_e1Yz16EVKW4ZLeQ/exec";
   // ──────────────────────────────────────────────────────────────
 
   function formatNum(n, digits = 1) {
@@ -434,6 +531,7 @@
 
   let entries = [];
   let isOnline = false;
+  let selectedFuel = 'E95';
 
   const openFormBtn = document.getElementById('openFormBtn');
   const closeFormBtn = document.getElementById('closeFormBtn');
@@ -444,6 +542,16 @@
   const syncDot = document.getElementById('syncDot');
   const syncText = document.getElementById('syncText');
   const setupBanner = document.getElementById('setupBanner');
+  const fuelToggle = document.getElementById('fuelToggle');
+
+  fuelToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.fuel-option');
+    if (!btn) return;
+    selectedFuel = btn.dataset.fuel;
+    fuelToggle.querySelectorAll('.fuel-option').forEach((b) => {
+      b.classList.toggle('active', b === btn);
+    });
+  });
 
   function setSyncStatus(state, message) {
     syncDot.className = 'sync-dot ' + state;
@@ -521,6 +629,10 @@
     document.getElementById('full').checked = true;
     dateInput.value = new Date().toISOString().slice(0, 10);
     formError.style.display = 'none';
+    selectedFuel = 'E95';
+    fuelToggle.querySelectorAll('.fuel-option').forEach((b) => {
+      b.classList.toggle('active', b.dataset.fuel === 'E95');
+    });
   }
 
   openFormBtn.addEventListener('click', () => {
@@ -545,7 +657,7 @@
     if (!p || p <= 0) return showError('Enter a valid price.');
     if (entries.some((en) => en.mileage === m)) return showError('An entry already exists at this mileage.');
 
-    addEntry({ id: uid(), date: d, mileage: m, liters: l, price: p, full });
+    addEntry({ id: uid(), date: d, mileage: m, liters: l, price: p, full, fuelType: selectedFuel });
   });
 
   function showError(msg) {
@@ -573,6 +685,50 @@
     return { avgConsumption, totalSpent, totalDist };
   }
 
+  function computeFuelComparison() {
+    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fullFillUps = sorted.filter((e) => e.full);
+
+    const byType = { E95: { dist: 0, liters: 0, spent: 0, count: 0 }, E98: { dist: 0, liters: 0, spent: 0, count: 0 } };
+
+    // Consumption: only count a stretch between two consecutive full
+    // fill-ups when the LATER fill-up (the one whose liters we're
+    // measuring) is of that fuel type, since that's the tank that was
+    // actually consumed over that stretch.
+    for (let i = 1; i < fullFillUps.length; i++) {
+      const prev = fullFillUps[i - 1];
+      const cur = fullFillUps[i];
+      const dist = cur.mileage - prev.mileage;
+      if (dist <= 0) continue;
+      const type = cur.fuelType;
+      if (type !== 'E95' && type !== 'E98') continue;
+      byType[type].dist += dist;
+      byType[type].liters += cur.liters;
+    }
+
+    // Price per liter: every entry of that type counts, regardless of
+    // whether it was a full or partial fill-up.
+    entries.forEach((e) => {
+      if (e.fuelType !== 'E95' && e.fuelType !== 'E98') return;
+      byType[e.fuelType].spent += e.price;
+      byType[e.fuelType].count += e.liters;
+    });
+
+    const result = {};
+    ['E95', 'E98'].forEach((type) => {
+      const d = byType[type];
+      const consumption = d.dist > 0 ? (d.liters / d.dist) * 100 : null;
+      const pricePerLiter = d.count > 0 ? d.spent / d.count : null;
+      const costPerKm = consumption !== null && pricePerLiter !== null
+        ? (consumption / 100) * pricePerLiter
+        : null;
+      result[type] = { consumption, pricePerLiter, costPerKm };
+    });
+
+    const haveBoth = result.E95.costPerKm !== null && result.E98.costPerKm !== null;
+    return { result, haveBoth };
+  }
+
   function render() {
     const stats = computeStats();
     const totalSpentAll = entries.reduce((s, e) => s + e.price, 0);
@@ -584,6 +740,44 @@
     document.getElementById('statDistance').innerHTML = stats
       ? `${formatNum(stats.totalDist, 0)}<span class="stat-unit">km</span>`
       : `—<span class="stat-unit">km</span>`;
+
+    const fuelCompareEl = document.getElementById('fuelCompare');
+    const compareGrid = document.getElementById('compareGrid');
+    const { result, haveBoth } = computeFuelComparison();
+    const anyData = result.E95.pricePerLiter !== null || result.E98.pricePerLiter !== null;
+
+    if (!anyData) {
+      fuelCompareEl.style.display = 'none';
+    } else {
+      fuelCompareEl.style.display = 'block';
+      const cheaper = haveBoth
+        ? (result.E95.costPerKm <= result.E98.costPerKm ? 'E95' : 'E98')
+        : null;
+      const labels = { E95: 'Euro95', E98: 'Euro98' };
+      compareGrid.innerHTML = ['E95', 'E98'].map((type) => {
+        const d = result[type];
+        const isWinner = cheaper === type;
+        return `
+          <div class="compare-card ${isWinner ? 'winner' : ''}">
+            <div class="compare-title">
+              <span>${labels[type]}</span>
+              ${isWinner ? '<span class="compare-winner-tag">Cheaper /km</span>' : ''}
+            </div>
+            <div class="compare-row">
+              <span class="compare-row-label">Consumption</span>
+              <span class="compare-row-value">${d.consumption !== null ? formatNum(d.consumption) + ' L/100km' : '—'}</span>
+            </div>
+            <div class="compare-row">
+              <span class="compare-row-label">Avg price</span>
+              <span class="compare-row-value">${d.pricePerLiter !== null ? '€' + formatNum(d.pricePerLiter, 3) + '/L' : '—'}</span>
+            </div>
+            <div class="compare-row">
+              <span class="compare-row-label">Cost per km</span>
+              <span class="compare-row-value">${d.costPerKm !== null ? '€' + formatNum(d.costPerKm, 3) : '—'}</span>
+            </div>
+          </div>`;
+      }).join('');
+    }
 
     const container = document.getElementById('entriesContainer');
     const listLabel = document.getElementById('listLabel');
@@ -614,12 +808,16 @@
     const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
     sortedDesc.forEach((e) => {
       const pricePerLiter = e.price / e.liters;
+      const fuelLabels = { E95: 'Euro95', E98: 'Euro98' };
+      const fuelClass = e.fuelType === 'E95' ? 'e95' : e.fuelType === 'E98' ? 'e98' : 'unknown';
+      const fuelLabel = fuelLabels[e.fuelType] || '';
       const div = document.createElement('div');
       div.className = 'entry';
       div.innerHTML = `
         <div>
           <div class="entry-top">
             <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
+            ${fuelLabel ? `<span class="fuel-badge ${fuelClass}">${fuelLabel}</span>` : ''}
             ${!e.full ? '<span class="badge">partial</span>' : ''}
           </div>
           <div class="entry-meta">${e.date} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
