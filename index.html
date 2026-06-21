@@ -430,6 +430,20 @@
   .delete-btn:hover { opacity: 1; color: var(--danger); }
   .delete-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
+  .footer-link-row {
+    margin-top: 40px;
+    text-align: center;
+  }
+  .footer-link {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--border);
+    text-decoration: none;
+    padding: 4px 10px;
+    transition: color 0.15s;
+  }
+  .footer-link:hover { color: var(--muted); }
+
   @media (max-width: 420px) {
     .stats { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
@@ -535,6 +549,10 @@
   <div>
     <div class="list-label" id="listLabel">Loading…</div>
     <div id="entriesContainer"></div>
+  </div>
+
+  <div class="footer-link-row">
+    <a href="https://docs.google.com/spreadsheets/d/1u9tEDrLKXED0Do2N3ZvMQ5MXSHvRFTizEozim_zs-R8/edit?gid=822606526#gid=822606526" target="_blank" rel="noopener noreferrer" class="footer-link">Open spreadsheet</a>
   </div>
 </div>
 
