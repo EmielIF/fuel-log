@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#15171c" />
+<title>Fuel Log — Peugeot 207 CC</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #15171c;
+    --panel: #1d2026;
+    --border: #2a2e36;
+    --text: #e8e6df;
+    --muted: #7a7e8a;
+    --accent: #f7933e;
+    --accent-hover: #ffa55c;
+    --danger: #ff6b6b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: 'DM Mono', monospace; }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 12px;
+  }
+
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background 0.15s, transform 0.1s;
+    white-space: nowrap;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:active { transform: scale(0.96); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .sync-status {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .sync-dot.ok { background: #4ade80; }
+  .sync-dot.err { background: var(--danger); }
+  .sync-dot.pending { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .setup-banner {
+    background: #2a2014;
+    border: 1px solid #4a3520;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #f0d0a0;
+    display: none;
+  }
+  .setup-banner.show { display: block; }
+  .setup-banner code {
+    background: rgba(0,0,0,0.3);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 14px;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+  .stat-value.glow { color: var(--accent); text-shadow: 0 0 18px rgba(247, 147, 62, 0.35); }
+
+  .stat-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    position: relative;
+    display: none;
+  }
+  .panel.open { display: block; }
+
+  .panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 16px;
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 4px;
+  }
+  .close-btn:hover { color: var(--text); }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  label {
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input[type="number"], input[type="date"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color-scheme: dark;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .checkbox-row span { font-size: 13px; color: #a8acb5; }
+  input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); }
+
+  .error {
+    font-size: 12px;
+    color: var(--danger);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px;
+  }
+
+  .btn-submit {
+    width: 100%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 11px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .btn-submit:hover { background: var(--accent-hover); }
+  .btn-submit:active { transform: scale(0.98); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .list-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .empty-state {
+    background: var(--panel);
+    border: 1px dashed var(--border);
+    border-radius: 16px;
+    padding: 40px 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty-state svg { margin-bottom: 12px; opacity: 0.5; }
+
+  .entry {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .entry-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .entry-mileage { font-family: 'DM Mono', monospace; font-size: 14px; }
+
+  .badge {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  .entry-meta {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .entry-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .entry-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+  }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 4px;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .delete-btn:hover { opacity: 1; color: var(--danger); }
+  .delete-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+  @media (max-width: 420px) {
+    .stats { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="eyebrow">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
+        <span>Fuel Log</span>
+      </div>
+      <h1>Peugeot 207 CC</h1>
+    </div>
+    <button class="btn-primary" id="openFormBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      Add fill-up
+    </button>
+  </div>
+
+  <div class="sync-status">
+    <span class="sync-dot" id="syncDot"></span>
+    <span id="syncText">Connecting to your sheet…</span>
+  </div>
+
+  <div class="setup-banner" id="setupBanner">
+    <strong>Almost there.</strong> Open <code>index.html</code> and replace the
+    <code>FUEL_API_URL</code> value near the top of the script with your
+    Apps Script Web App URL, then reload this page.
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Avg consumption</div>
+      <div class="stat-value glow mono" id="statConsumption">—<span class="stat-unit">L/100km</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total spent</div>
+      <div class="stat-value mono" id="statSpent">€0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Distance logged</div>
+      <div class="stat-value mono" id="statDistance">—<span class="stat-unit">km</span></div>
+    </div>
+  </div>
+
+  <form class="panel" id="entryForm">
+    <button type="button" class="close-btn" id="closeFormBtn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <h2>New fill-up</h2>
+
+    <div class="row">
+      <div>
+        <label for="mileage">Odometer (km)</label>
+        <input type="number" inputmode="decimal" id="mileage" placeholder="48210" />
+      </div>
+      <div>
+        <label for="date">Date</label>
+        <input type="date" id="date" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="liters">Fuel (liters)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="liters" placeholder="42.5" />
+      </div>
+      <div>
+        <label for="price">Total price (€)</label>
+        <input type="number" inputmode="decimal" step="0.01" id="price" placeholder="78.30" />
+      </div>
+    </div>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="full" checked />
+      <span>Filled the tank completely</span>
+    </label>
+
+    <div class="error" id="formError" style="display:none;"></div>
+
+    <button type="submit" class="btn-submit" id="submitBtn">Save entry</button>
+  </form>
+
+  <div>
+    <div class="list-label" id="listLabel">Loading…</div>
+    <div id="entriesContainer"></div>
+  </div>
+</div>
+
+<script>
+  // ──────────────────────────────────────────────────────────────
+  // PASTE YOUR APPS SCRIPT WEB APP URL HERE, between the quotes:
+  const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbwOWHfNJr8bqxsdRUsRPNNdgitNdQIZ6InaaMyC1Z6W5F0NwgpEpMmQqkUhzZ9ijDcr2Q/exec";
+  // ──────────────────────────────────────────────────────────────
+
+  function formatNum(n, digits = 1) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    return n.toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  let entries = [];
+  let isOnline = false;
+
+  const openFormBtn = document.getElementById('openFormBtn');
+  const closeFormBtn = document.getElementById('closeFormBtn');
+  const entryForm = document.getElementById('entryForm');
+  const formError = document.getElementById('formError');
+  const dateInput = document.getElementById('date');
+  const submitBtn = document.getElementById('submitBtn');
+  const syncDot = document.getElementById('syncDot');
+  const syncText = document.getElementById('syncText');
+  const setupBanner = document.getElementById('setupBanner');
+
+  function setSyncStatus(state, message) {
+    syncDot.className = 'sync-dot ' + state;
+    syncText.textContent = message;
+  }
+
+  function isConfigured() {
+    return FUEL_API_URL && FUEL_API_URL.indexOf('PASTE_YOUR') === -1 && FUEL_API_URL.startsWith('http');
+  }
+
+  async function fetchEntries() {
+    if (!isConfigured()) {
+      setupBanner.classList.add('show');
+      setSyncStatus('err', 'Not connected yet — see setup note above.');
+      submitBtn.disabled = true;
+      render();
+      return;
+    }
+    setSyncStatus('pending', 'Loading your sheet…');
+    try {
+      const res = await fetch(FUEL_API_URL);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      entries = data.entries;
+      isOnline = true;
+      setSyncStatus('ok', 'Synced with Google Sheet');
+    } catch (err) {
+      isOnline = false;
+      setSyncStatus('err', 'Could not reach your sheet. Check your connection and reload.');
+    }
+    render();
+  }
+
+  async function addEntry(entry) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch(FUEL_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add', entry }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Save failed');
+      entries.push(entry);
+      entryForm.classList.remove('open');
+      render();
+    } catch (err) {
+      showError('Could not save to your sheet. Check your connection and try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save entry';
+    }
+  }
+
+  async function deleteEntry(id) {
+    const btn = document.querySelector(`.delete-btn[data-id="${id}"]`);
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(FUEL_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Delete failed');
+      entries = entries.filter((en) => en.id !== id);
+      render();
+    } catch (err) {
+      if (btn) btn.disabled = false;
+      alert('Could not delete this entry. Check your connection and try again.');
+    }
+  }
+
+  function resetForm() {
+    entryForm.reset();
+    document.getElementById('full').checked = true;
+    dateInput.value = new Date().toISOString().slice(0, 10);
+    formError.style.display = 'none';
+  }
+
+  openFormBtn.addEventListener('click', () => {
+    entryForm.classList.add('open');
+    resetForm();
+  });
+
+  closeFormBtn.addEventListener('click', () => {
+    entryForm.classList.remove('open');
+  });
+
+  entryForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const m = parseFloat(document.getElementById('mileage').value);
+    const l = parseFloat(document.getElementById('liters').value);
+    const p = parseFloat(document.getElementById('price').value);
+    const d = dateInput.value || new Date().toISOString().slice(0, 10);
+    const full = document.getElementById('full').checked;
+
+    if (!m || m <= 0) return showError('Enter a valid odometer reading.');
+    if (!l || l <= 0) return showError('Enter a valid amount of fuel.');
+    if (!p || p <= 0) return showError('Enter a valid price.');
+    if (entries.some((en) => en.mileage === m)) return showError('An entry already exists at this mileage.');
+
+    addEntry({ id: uid(), date: d, mileage: m, liters: l, price: p, full });
+  });
+
+  function showError(msg) {
+    formError.textContent = msg;
+    formError.style.display = 'block';
+  }
+
+  function computeStats() {
+    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fullFillUps = sorted.filter((e) => e.full);
+    if (fullFillUps.length < 2) return null;
+
+    let totalDist = 0;
+    let totalLiters = 0;
+    for (let i = 1; i < fullFillUps.length; i++) {
+      const prev = fullFillUps[i - 1];
+      const cur = fullFillUps[i];
+      const dist = cur.mileage - prev.mileage;
+      if (dist <= 0) continue;
+      totalDist += dist;
+      totalLiters += cur.liters;
+    }
+    const avgConsumption = totalDist > 0 ? (totalLiters / totalDist) * 100 : null;
+    const totalSpent = sorted.reduce((s, e) => s + e.price, 0);
+    return { avgConsumption, totalSpent, totalDist };
+  }
+
+  function render() {
+    const stats = computeStats();
+    const totalSpentAll = entries.reduce((s, e) => s + e.price, 0);
+
+    document.getElementById('statConsumption').innerHTML = stats
+      ? `${formatNum(stats.avgConsumption)}<span class="stat-unit">L/100km</span>`
+      : `—<span class="stat-unit">L/100km</span>`;
+    document.getElementById('statSpent').textContent = `€${formatNum(totalSpentAll, 2)}`;
+    document.getElementById('statDistance').innerHTML = stats
+      ? `${formatNum(stats.totalDist, 0)}<span class="stat-unit">km</span>`
+      : `—<span class="stat-unit">km</span>`;
+
+    const container = document.getElementById('entriesContainer');
+    const listLabel = document.getElementById('listLabel');
+    container.innerHTML = '';
+
+    if (!isConfigured()) {
+      listLabel.textContent = 'Not connected';
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
+          <p>Connect your Google Sheet to start logging.</p>
+        </div>`;
+      return;
+    }
+
+    if (entries.length === 0) {
+      listLabel.textContent = 'No entries yet';
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
+          <p>Log your first fill-up to start tracking consumption and cost.</p>
+        </div>`;
+      return;
+    }
+
+    listLabel.textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, latest first`;
+
+    const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
+    sortedDesc.forEach((e) => {
+      const pricePerLiter = e.price / e.liters;
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.innerHTML = `
+        <div>
+          <div class="entry-top">
+            <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
+            ${!e.full ? '<span class="badge">partial</span>' : ''}
+          </div>
+          <div class="entry-meta">${e.date} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
+        </div>
+        <div class="entry-right">
+          <span class="entry-price">€${formatNum(e.price, 2)}</span>
+          <button class="delete-btn" aria-label="Delete entry" data-id="${e.id}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+          </button>
+        </div>`;
+      container.appendChild(div);
+    });
+
+    container.querySelectorAll('.delete-btn').forEach((btn) => {
+      btn.addEventListener('click', () => deleteEntry(btn.dataset.id));
+    });
+  }
+
+  dateInput.value = new Date().toISOString().slice(0, 10);
+  fetchEntries();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
