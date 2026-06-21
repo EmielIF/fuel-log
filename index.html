@@ -826,15 +826,16 @@
       else break;
     }
     const multiplier = km / chosen.km;
+    const kmText = `<strong>${formatNum(km, 0)}km</strong>`;
     if (multiplier < 1) {
       const frac = Math.round(multiplier * 100) / 100;
-      return `That's about <strong>${formatNum(frac, 2)}×</strong> ${chosen.label}.`;
+      return `You've driven ${kmText} so far, about ${formatNum(frac, 2)}× ${chosen.label}.`;
     }
     if (Math.abs(multiplier - 1) < 0.05) {
-      return `That's about the same as ${chosen.label}.`;
+      return `You've driven ${kmText} so far, about the same as ${chosen.label}.`;
     }
     const t = Math.round(multiplier * 10) / 10;
-    return `That's about <strong>${formatNum(t, 1)}×</strong> ${chosen.label}.`;
+    return `You've driven ${kmText} so far, about ${formatNum(t, 1)}× ${chosen.label}.`;
   }
 
   // Liters of car fuel expressed as the distance a Boeing 737 could fly
@@ -844,26 +845,113 @@
   function fuelFunFact(totalLiters) {
     const B737_L_PER_KM = 3.68;
     const equivKm = totalLiters / B737_L_PER_KM;
+    const litersText = `<strong>${formatNum(totalLiters, 0)}L</strong>`;
     if (equivKm < 1) {
       const m = Math.round(equivKm * 1000);
-      return `The fuel you've used so far would fly a Boeing 737 about <strong>${m}m</strong>, barely off the runway.`;
+      return `You've used ${litersText} of fuel so far, that's enough to fly a Boeing 737 about ${m}m, barely off the runway.`;
     }
     if (equivKm < 100) {
-      return `The fuel you've used so far would fly a Boeing 737 about <strong>${formatNum(equivKm, 1)}km</strong>.`;
+      return `You've used ${litersText} of fuel so far, that's enough to fly a Boeing 737 about ${formatNum(equivKm, 1)}km.`;
     }
-    return `The fuel you've used so far would fly a Boeing 737 about <strong>${formatNum(equivKm, 0)}km</strong>, roughly the cruise distance for a short regional hop.`;
+    return `You've used ${litersText} of fuel so far, that's enough to fly a Boeing 737 about ${formatNum(equivKm, 0)}km, roughly a short regional hop.`;
   }
 
+  // CO2 emitted by burning the total logged liters of petrol. Uses the
+  // commonly cited figure of about 2.31 kg CO2 per liter of gasoline
+  // burned (tailpipe emissions only, not production/refining footprint).
+  function co2FunFact(totalLiters) {
+    const KG_CO2_PER_LITER = 2.31;
+    const kg = totalLiters * KG_CO2_PER_LITER;
+    const litersText = `<strong>${formatNum(totalLiters, 0)}L</strong>`;
+    if (kg < 1000) {
+      return `Burning the ${litersText} of fuel you've used so far released about <strong>${formatNum(kg, 0)}kg</strong> of CO2.`;
+    }
+    const tonnes = kg / 1000;
+    return `Burning the ${litersText} of fuel you've used so far released about <strong>${formatNum(tonnes, 2)} tonnes</strong> of CO2.`;
+  }
+
+  // Average distance covered per full tank, using the same full-fill-up
+  // pairing logic as the consumption stat. Tells you roughly how far a
+  // tank typically takes you, which is also a rough "when's my next
+  // stop" indicator.
+  function tankLifeFunFact() {
+    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fullFillUps = sorted.filter((e) => e.full);
+    if (fullFillUps.length < 2) return null;
+    let totalDist = 0;
+    let count = 0;
+    for (let i = 1; i < fullFillUps.length; i++) {
+      const dist = fullFillUps[i].mileage - fullFillUps[i - 1].mileage;
+      if (dist <= 0) continue;
+      totalDist += dist;
+      count++;
+    }
+    if (count === 0) return null;
+    const avg = totalDist / count;
+    return `On average, a full tank takes you about <strong>${formatNum(avg, 0)}km</strong> before the next fill-up.`;
+  }
+
+  // Days since the most recent logged entry, as a quiet, factual nudge
+  // rather than a celebratory "fun fact" tone.
+  function daysSinceFunFact() {
+    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const last = sorted[sorted.length - 1];
+    if (!last || !last.date) return null;
+    const m = String(last.date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const lastDate = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    lastDate.setHours(0, 0, 0, 0);
+    const days = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
+    if (days < 0) return null;
+    if (days === 0) return `Last fill-up logged today.`;
+    if (days === 1) return `It's been <strong>1 day</strong> since your last logged fill-up.`;
+    return `It's been <strong>${days} days</strong> since your last logged fill-up.`;
+  }
+
+  // Picks n random items from an array without repeats.
+  function pickRandom(arr, n) {
+    const copy = [...arr];
+    const picked = [];
+    while (copy.length && picked.length < n) {
+      const i = Math.floor(Math.random() * copy.length);
+      picked.push(copy.splice(i, 1)[0]);
+    }
+    return picked;
+  }
+
+  // Builds the pool of currently-computable facts (some need more data
+  // than others, e.g. tank life needs 2+ full fill-ups) and returns a
+  // random selection of up to 2, each as { icon, text }. Re-rolled on
+  // every page load, so reloading shows a different pair over time.
   function computeFunFacts() {
     const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
     if (sorted.length < 2) return null;
     const totalDist = sorted[sorted.length - 1].mileage - sorted[0].mileage;
     const totalLiters = sorted.reduce((s, e) => s + e.liters, 0);
     if (totalDist <= 0) return null;
-    return {
-      distanceText: distanceFunFact(totalDist),
-      fuelText: fuelFunFact(totalLiters),
+
+    const ICONS = {
+      distance: '<path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/>',
+      fuel: '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.3.5l-.7.7c-.4.4-.3 1.1.2 1.4L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.1 6c.3.5 1 .6 1.4.2l.7-.7c.4-.3.6-.8.5-1.3z"/>',
+      co2: '<path d="M12 3v6m0 0a4 4 0 1 0 4 4M12 9a4 4 0 1 0-4 4m4-4v12M8 17a4 4 0 0 0 8 0"/>',
+      tank: '<path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/>',
+      calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
     };
+
+    const pool = [];
+    pool.push({ icon: ICONS.distance, text: distanceFunFact(totalDist) });
+    pool.push({ icon: ICONS.fuel, text: fuelFunFact(totalLiters) });
+    pool.push({ icon: ICONS.co2, text: co2FunFact(totalLiters) });
+
+    const tankText = tankLifeFunFact();
+    if (tankText) pool.push({ icon: ICONS.tank, text: tankText });
+
+    const daysText = daysSinceFunFact();
+    if (daysText) pool.push({ icon: ICONS.calendar, text: daysText });
+
+    return pickRandom(pool, 2);
   }
 
   function computeFuelComparison() {
@@ -964,23 +1052,17 @@
 
     const funFactsEl = document.getElementById('funFacts');
     const funFacts = computeFunFacts();
-    if (!funFacts) {
+    if (!funFacts || funFacts.length === 0) {
       funFactsEl.style.display = 'none';
     } else {
       funFactsEl.style.display = 'flex';
-      funFactsEl.innerHTML = `
+      funFactsEl.innerHTML = funFacts.map((fact) => `
         <div class="fun-fact-card">
           <div class="fun-fact-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${fact.icon}</svg>
           </div>
-          <div class="fun-fact-text">${funFacts.distanceText}</div>
-        </div>
-        <div class="fun-fact-card">
-          <div class="fun-fact-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.3.5l-.7.7c-.4.4-.3 1.1.2 1.4L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.1 6c.3.5 1 .6 1.4.2l.7-.7c.4-.3.6-.8.5-1.3z"/></svg>
-          </div>
-          <div class="fun-fact-text">${funFacts.fuelText}</div>
-        </div>`;
+          <div class="fun-fact-text">${fact.text}</div>
+        </div>`).join('');
     }
 
     const container = document.getElementById('entriesContainer');
