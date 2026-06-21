@@ -43,7 +43,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 32px;
+    margin-bottom: 12px;
     gap: 12px;
   }
 
@@ -86,12 +86,53 @@
   }
   .btn-primary:hover { background: var(--accent-hover); }
   .btn-primary:active { transform: scale(0.96); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .sync-status {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .sync-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .sync-dot.ok { background: #4ade80; }
+  .sync-dot.err { background: var(--danger); }
+  .sync-dot.pending { background: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .setup-banner {
+    background: #2a2014;
+    border: 1px solid #4a3520;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #f0d0a0;
+    display: none;
+  }
+  .setup-banner.show { display: block; }
+  .setup-banner code {
+    background: rgba(0,0,0,0.3);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
 
   .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
   .stat-card {
@@ -111,7 +152,6 @@
 
   .stat-value {
     font-size: 20px;
-    text-shadow: 0 0 18px rgba(247, 147, 62, 0.0);
   }
   .stat-value.glow { color: var(--accent); text-shadow: 0 0 18px rgba(247, 147, 62, 0.35); }
 
@@ -205,6 +245,7 @@
   }
   .btn-submit:hover { background: var(--accent-hover); }
   .btn-submit:active { transform: scale(0.98); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
   .list-label {
     font-size: 10px;
@@ -282,6 +323,7 @@
     transition: opacity 0.15s, color 0.15s;
   }
   .delete-btn:hover { opacity: 1; color: var(--danger); }
+  .delete-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
   @media (max-width: 420px) {
     .stats { grid-template-columns: 1fr; }
@@ -303,6 +345,17 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       Add fill-up
     </button>
+  </div>
+
+  <div class="sync-status">
+    <span class="sync-dot" id="syncDot"></span>
+    <span id="syncText">Connecting to your sheet…</span>
+  </div>
+
+  <div class="setup-banner" id="setupBanner">
+    <strong>Almost there.</strong> Open <code>index.html</code> and replace the
+    <code>FUEL_API_URL</code> value near the top of the script with your
+    Apps Script Web App URL, then reload this page.
   </div>
 
   <div class="stats">
@@ -355,47 +408,113 @@
 
     <div class="error" id="formError" style="display:none;"></div>
 
-    <button type="submit" class="btn-submit">Save entry</button>
+    <button type="submit" class="btn-submit" id="submitBtn">Save entry</button>
   </form>
 
   <div>
-    <div class="list-label" id="listLabel">No entries yet</div>
+    <div class="list-label" id="listLabel">Loading…</div>
     <div id="entriesContainer"></div>
   </div>
 </div>
 
 <script>
-  const STORAGE_KEY = 'fuel-log-entries';
-
-  function loadEntries() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveEntries(entries) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }
-
-  function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  }
+  // ──────────────────────────────────────────────────────────────
+  // PASTE YOUR APPS SCRIPT WEB APP URL HERE, between the quotes:
+  const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbwOWHfNJr8bqxsdRUsRPNNdgitNdQIZ6InaaMyC1Z6W5F0NwgpEpMmQqkUhzZ9ijDcr2Q/exec";
+  // ──────────────────────────────────────────────────────────────
 
   function formatNum(n, digits = 1) {
     if (n === null || n === undefined || Number.isNaN(n)) return '—';
     return n.toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits });
   }
 
-  let entries = loadEntries();
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  let entries = [];
+  let isOnline = false;
 
   const openFormBtn = document.getElementById('openFormBtn');
   const closeFormBtn = document.getElementById('closeFormBtn');
   const entryForm = document.getElementById('entryForm');
   const formError = document.getElementById('formError');
   const dateInput = document.getElementById('date');
+  const submitBtn = document.getElementById('submitBtn');
+  const syncDot = document.getElementById('syncDot');
+  const syncText = document.getElementById('syncText');
+  const setupBanner = document.getElementById('setupBanner');
+
+  function setSyncStatus(state, message) {
+    syncDot.className = 'sync-dot ' + state;
+    syncText.textContent = message;
+  }
+
+  function isConfigured() {
+    return FUEL_API_URL && FUEL_API_URL.indexOf('PASTE_YOUR') === -1 && FUEL_API_URL.startsWith('http');
+  }
+
+  async function fetchEntries() {
+    if (!isConfigured()) {
+      setupBanner.classList.add('show');
+      setSyncStatus('err', 'Not connected yet — see setup note above.');
+      submitBtn.disabled = true;
+      render();
+      return;
+    }
+    setSyncStatus('pending', 'Loading your sheet…');
+    try {
+      const res = await fetch(FUEL_API_URL);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      entries = data.entries;
+      isOnline = true;
+      setSyncStatus('ok', 'Synced with Google Sheet');
+    } catch (err) {
+      isOnline = false;
+      setSyncStatus('err', 'Could not reach your sheet. Check your connection and reload.');
+    }
+    render();
+  }
+
+  async function addEntry(entry) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch(FUEL_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add', entry }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Save failed');
+      entries.push(entry);
+      entryForm.classList.remove('open');
+      render();
+    } catch (err) {
+      showError('Could not save to your sheet. Check your connection and try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save entry';
+    }
+  }
+
+  async function deleteEntry(id) {
+    const btn = document.querySelector(`.delete-btn[data-id="${id}"]`);
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(FUEL_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', id }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Delete failed');
+      entries = entries.filter((en) => en.id !== id);
+      render();
+    } catch (err) {
+      if (btn) btn.disabled = false;
+      alert('Could not delete this entry. Check your connection and try again.');
+    }
+  }
 
   function resetForm() {
     entryForm.reset();
@@ -426,21 +545,12 @@
     if (!p || p <= 0) return showError('Enter a valid price.');
     if (entries.some((en) => en.mileage === m)) return showError('An entry already exists at this mileage.');
 
-    entries.push({ id: uid(), date: d, mileage: m, liters: l, price: p, full });
-    saveEntries(entries);
-    entryForm.classList.remove('open');
-    render();
+    addEntry({ id: uid(), date: d, mileage: m, liters: l, price: p, full });
   });
 
   function showError(msg) {
     formError.textContent = msg;
     formError.style.display = 'block';
-  }
-
-  function deleteEntry(id) {
-    entries = entries.filter((en) => en.id !== id);
-    saveEntries(entries);
-    render();
   }
 
   function computeStats() {
@@ -478,6 +588,16 @@
     const container = document.getElementById('entriesContainer');
     const listLabel = document.getElementById('listLabel');
     container.innerHTML = '';
+
+    if (!isConfigured()) {
+      listLabel.textContent = 'Not connected';
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
+          <p>Connect your Google Sheet to start logging.</p>
+        </div>`;
+      return;
+    }
 
     if (entries.length === 0) {
       listLabel.textContent = 'No entries yet';
@@ -519,7 +639,7 @@
   }
 
   dateInput.value = new Date().toISOString().slice(0, 10);
-  render();
+  fetchEntries();
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
