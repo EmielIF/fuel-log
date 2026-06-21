@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#15171c" />
 <title>Fuel Log — Peugeot 207 CC</title>
-<link rel="manifest" href="manifest.json" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -92,7 +91,7 @@
     font-size: 11px;
     font-family: 'DM Mono', monospace;
     color: var(--muted);
-    margin-bottom: 24px;
+    margin-bottom: 4px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -107,6 +106,29 @@
   .sync-dot.err { background: var(--danger); }
   .sync-dot.pending { background: var(--accent); animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .reload-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 4px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .reload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .sync-detail {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--danger);
+    margin-bottom: 24px;
+    word-break: break-word;
+    display: none;
+  }
+  .sync-detail.show { display: block; }
 
   .setup-banner {
     background: #2a2014;
@@ -434,7 +456,9 @@
   <div class="sync-status">
     <span class="sync-dot" id="syncDot"></span>
     <span id="syncText">Connecting to your sheet…</span>
+    <button type="button" id="reloadBtn" class="reload-btn">Reload data</button>
   </div>
+  <div class="sync-detail" id="syncDetail"></div>
 
   <div class="setup-banner" id="setupBanner">
     <strong>Almost there.</strong> Open <code>index.html</code> and replace the
@@ -517,7 +541,7 @@
 <script>
   // ──────────────────────────────────────────────────────────────
   // PASTE YOUR APPS SCRIPT WEB APP URL HERE, between the quotes:
-  const FUEL_API_URL = "https://script.google.com/macros/library/d/11Jmutu8bI0kU8wXYqARrrsHGsPJliFaboBuNZZ3zqROCwFijZGGiYd35/2";
+  const FUEL_API_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
   // ──────────────────────────────────────────────────────────────
 
   function formatNum(n, digits = 1) {
@@ -541,8 +565,12 @@
   const submitBtn = document.getElementById('submitBtn');
   const syncDot = document.getElementById('syncDot');
   const syncText = document.getElementById('syncText');
+  const syncDetail = document.getElementById('syncDetail');
+  const reloadBtn = document.getElementById('reloadBtn');
   const setupBanner = document.getElementById('setupBanner');
   const fuelToggle = document.getElementById('fuelToggle');
+
+  reloadBtn.addEventListener('click', () => fetchEntries());
 
   fuelToggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.fuel-option');
@@ -553,9 +581,16 @@
     });
   });
 
-  function setSyncStatus(state, message) {
+  function setSyncStatus(state, message, detail) {
     syncDot.className = 'sync-dot ' + state;
     syncText.textContent = message;
+    if (detail) {
+      syncDetail.textContent = detail;
+      syncDetail.classList.add('show');
+    } else {
+      syncDetail.textContent = '';
+      syncDetail.classList.remove('show');
+    }
   }
 
   function isConfigured() {
@@ -572,15 +607,16 @@
     }
     setSyncStatus('pending', 'Loading your sheet…');
     try {
-      const res = await fetch(FUEL_API_URL);
+      const res = await fetch(FUEL_API_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
       const data = await res.json();
-      if (!data.ok) throw new Error(data.error || 'Unknown error');
+      if (!data.ok) throw new Error(data.error || 'Script returned ok: false');
       entries = data.entries;
       isOnline = true;
       setSyncStatus('ok', 'Synced with Google Sheet');
     } catch (err) {
       isOnline = false;
-      setSyncStatus('err', 'Could not reach your sheet. Check your connection and reload.');
+      setSyncStatus('err', 'Could not reach your sheet.', String(err && err.message ? err.message : err));
     }
     render();
   }
@@ -599,7 +635,7 @@
       entryForm.classList.remove('open');
       render();
     } catch (err) {
-      showError('Could not save to your sheet. Check your connection and try again.');
+      showError('Could not save to your sheet: ' + (err && err.message ? err.message : err));
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Save entry';
@@ -620,7 +656,7 @@
       render();
     } catch (err) {
       if (btn) btn.disabled = false;
-      alert('Could not delete this entry. Check your connection and try again.');
+      alert('Could not delete this entry: ' + (err && err.message ? err.message : err));
     }
   }
 
@@ -838,12 +874,6 @@
 
   dateInput.value = new Date().toISOString().slice(0, 10);
   fetchEntries();
-
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    });
-  }
 </script>
 </body>
 </html>
