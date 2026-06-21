@@ -789,36 +789,52 @@
   }
 
   // Picks the most relatable distance comparison for the given km total.
-  // Tiers are ordered smallest-first; the first one whose range fits wins,
-  // so a small total gets a human-scale reference and a large total
-  // gracefully graduates to bigger ones instead of always quoting the
-  // same comparison as a tiny, meaningless fraction.
+  // Each entry is a real reference distance with a label. The function
+  // finds the largest reference that's still <= the total (so the
+  // multiplier reads as "1.2x" rather than "0.2x"), falling back to the
+  // smallest reference if the total hasn't reached it yet. This keeps
+  // the comparison anchored to something real-feeling at every scale,
+  // rather than a tiny, meaningless fraction of a huge distance.
+  const DISTANCE_REFERENCES = [
+    { km: 12, label: 'Scherpenzeel to Amersfoort' },
+    { km: 35, label: 'Scherpenzeel to Utrecht' },
+    { km: 65, label: 'Scherpenzeel to Amsterdam' },
+    { km: 120, label: 'Scherpenzeel to Arnhem and back' },
+    { km: 180, label: 'Scherpenzeel to Cologne' },
+    { km: 200, label: 'Scherpenzeel to Brussels' },
+    { km: 300, label: 'the length of the Netherlands, Groningen to Maastricht' },
+    { km: 470, label: 'Scherpenzeel to Paris' },
+    { km: 600, label: 'Scherpenzeel to Basel' },
+    { km: 900, label: 'Scherpenzeel to Locarno' },
+    { km: 1200, label: 'Scherpenzeel to Munich and back' },
+    { km: 1500, label: 'Scherpenzeel to Rome' },
+    { km: 2000, label: 'Scherpenzeel to Locarno and back, twice' },
+    { km: 2500, label: 'the length of Europe, Norway to Sicily' },
+    { km: 3900, label: 'the width of Europe, Lisbon to Moscow' },
+    { km: 4500, label: 'driving coast to coast across the USA' },
+    { km: 9000, label: 'Scherpenzeel to Locarno, ten times over' },
+    { km: 20000, label: 'half the way around the Earth' },
+    { km: 40075, label: 'once around the Earth at the equator' },
+    { km: 100000, label: 'around the Earth, two and a half times' },
+    { km: 384400, label: 'the distance to the Moon' },
+  ];
+
   function distanceFunFact(km) {
-    if (km < 30) {
-      return `That's about a drive from Scherpenzeel to Utrecht and back.`;
+    let chosen = DISTANCE_REFERENCES[0];
+    for (const ref of DISTANCE_REFERENCES) {
+      if (km >= ref.km) chosen = ref;
+      else break;
     }
-    if (km < 120) {
-      return `That's roughly the width of the Netherlands, top to bottom is about 300km, so you're about a third of the way there.`;
+    const multiplier = km / chosen.km;
+    if (multiplier < 1) {
+      const frac = Math.round(multiplier * 100) / 100;
+      return `That's about <strong>${formatNum(frac, 2)}×</strong> ${chosen.label}.`;
     }
-    if (km < 500) {
-      const t = Math.round((km / 300) * 10) / 10;
-      return `That's about <strong>${formatNum(t, 1)}×</strong> the length of the Netherlands (Groningen to Maastricht).`;
+    if (Math.abs(multiplier - 1) < 0.05) {
+      return `That's about the same as ${chosen.label}.`;
     }
-    if (km < 1500) {
-      const t = Math.round((km / 900) * 10) / 10;
-      return `That's about <strong>${formatNum(t, 1)}×</strong> the driving distance from Scherpenzeel to Locarno.`;
-    }
-    if (km < 8000) {
-      const t = Math.round((km / 2500) * 10) / 10;
-      return `That's about <strong>${formatNum(t, 1)}×</strong> the length of Europe, north to south (Norway to Sicily).`;
-    }
-    if (km < 50000) {
-      const t = Math.round((km / 40075) * 100) / 100;
-      return `That's about <strong>${formatNum(t, 2)}×</strong> around the Earth at the equator.`;
-    }
-    const moonKm = 384400;
-    const t = Math.round((km / moonKm) * 1000) / 1000;
-    return `That's about <strong>${formatNum(t, 3)}×</strong> the distance to the Moon.`;
+    const t = Math.round(multiplier * 10) / 10;
+    return `That's about <strong>${formatNum(t, 1)}×</strong> ${chosen.label}.`;
   }
 
   // Liters of car fuel expressed as the distance a Boeing 737 could fly
