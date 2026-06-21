@@ -453,39 +453,6 @@
     </button>
   </div>
 
-  <div class="sync-status">
-    <span class="sync-dot" id="syncDot"></span>
-    <span id="syncText">Connecting to your sheet…</span>
-    <button type="button" id="reloadBtn" class="reload-btn">Reload data</button>
-  </div>
-  <div class="sync-detail" id="syncDetail"></div>
-
-  <div class="setup-banner" id="setupBanner">
-    <strong>Almost there.</strong> Open <code>index.html</code> and replace the
-    <code>FUEL_API_URL</code> value near the top of the script with your
-    Apps Script Web App URL, then reload this page.
-  </div>
-
-  <div class="stats">
-    <div class="stat-card">
-      <div class="stat-label">Avg consumption</div>
-      <div class="stat-value glow mono" id="statConsumption">—<span class="stat-unit">L/100km</span></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Total spent</div>
-      <div class="stat-value mono" id="statSpent">€0.00</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Distance logged</div>
-      <div class="stat-value mono" id="statDistance">—<span class="stat-unit">km</span></div>
-    </div>
-  </div>
-
-  <div id="fuelCompare" style="display:none; margin-bottom: 24px;">
-    <div class="list-label">Euro95 vs Euro98</div>
-    <div class="compare-grid" id="compareGrid"></div>
-  </div>
-
   <form class="panel" id="entryForm">
     <button type="button" class="close-btn" id="closeFormBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -532,6 +499,39 @@
     <button type="submit" class="btn-submit" id="submitBtn">Save entry</button>
   </form>
 
+  <div class="sync-status">
+    <span class="sync-dot" id="syncDot"></span>
+    <span id="syncText">Connecting to your sheet…</span>
+    <button type="button" id="reloadBtn" class="reload-btn">Reload data</button>
+  </div>
+  <div class="sync-detail" id="syncDetail"></div>
+
+  <div class="setup-banner" id="setupBanner">
+    <strong>Almost there.</strong> Open <code>index.html</code> and replace the
+    <code>FUEL_API_URL</code> value near the top of the script with your
+    Apps Script Web App URL, then reload this page.
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Avg consumption</div>
+      <div class="stat-value glow mono" id="statConsumption">—<span class="stat-unit">L/100km</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total spent</div>
+      <div class="stat-value mono" id="statSpent">€0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Distance logged</div>
+      <div class="stat-value mono" id="statDistance">—<span class="stat-unit">km</span></div>
+    </div>
+  </div>
+
+  <div id="fuelCompare" style="display:none; margin-bottom: 24px;">
+    <div class="list-label">Euro95 vs Euro98</div>
+    <div class="compare-grid" id="compareGrid"></div>
+  </div>
+
   <div>
     <div class="list-label" id="listLabel">Loading…</div>
     <div id="entriesContainer"></div>
@@ -547,6 +547,17 @@
   function formatNum(n, digits = 1) {
     if (n === null || n === undefined || Number.isNaN(n)) return '—';
     return n.toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  }
+
+  function formatDateDisplay(isoDate) {
+    // Accepts "YYYY-MM-DD" (from the date input or the sheet) and
+    // returns "DD-MM-YYYY" for display. Falls back to the raw value
+    // if it doesn't match the expected shape.
+    if (!isoDate) return '';
+    const m = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return String(isoDate);
+    const [, y, mo, d] = m;
+    return `${d}-${mo}-${y}`;
   }
 
   function uid() {
@@ -858,7 +869,7 @@
             ${fuelLabel ? `<span class="fuel-badge ${fuelClass}">${fuelLabel}</span>` : ''}
             ${!e.full ? '<span class="badge">partial</span>' : ''}
           </div>
-          <div class="entry-meta">${e.date} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
+          <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
         </div>
         <div class="entry-right">
           <span class="entry-price">€${formatNum(e.price, 2)}</span>
