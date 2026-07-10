@@ -781,7 +781,14 @@
       const dist = cur.mileage - prev.mileage;
       if (dist <= 0) continue;
       totalDist += dist;
-      totalLiters += cur.liters;
+      // Sum ALL liters between prev (exclusive) and cur (inclusive):
+      // partial fill-ups between two full tanks contribute real fuel that
+      // was burned over this stretch, so they must be counted. Only
+      // adding cur.liters would make consumption look artificially low.
+      const litersInStretch = sorted
+        .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
+        .reduce((s, e) => s + e.liters, 0);
+      totalLiters += litersInStretch;
     }
     const avgConsumption = totalDist > 0 ? (totalLiters / totalDist) * 100 : null;
     const totalSpent = sorted.reduce((s, e) => s + e.price, 0);
@@ -962,10 +969,11 @@
 
     // Consumption: a stretch between two consecutive full fill-ups burns
     // whatever fuel was put in at the START of that stretch (prev), since
-    // that's what was sitting in the tank while you drove it. The
-    // distance and liters-to-refill both come from that same stretch
-    // (cur.mileage - prev.mileage, and cur.liters), but the fuel TYPE
-    // responsible for that consumption is prev.fuelType, not cur's.
+    // that's what was sitting in the tank while you drove it. The fuel
+    // TYPE is attributed to prev.fuelType. The LITERS count must include
+    // ALL fill-ups in the stretch (full and partial), not just cur.liters,
+    // because partial fill-ups between two full tanks are real fuel burned
+    // and ignoring them would make consumption look artificially low.
     for (let i = 1; i < fullFillUps.length; i++) {
       const prev = fullFillUps[i - 1];
       const cur = fullFillUps[i];
@@ -973,8 +981,11 @@
       if (dist <= 0) continue;
       const type = prev.fuelType;
       if (type !== 'E95' && type !== 'E98') continue;
+      const litersInStretch = sorted
+        .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
+        .reduce((s, e) => s + e.liters, 0);
       byType[type].dist += dist;
-      byType[type].liters += cur.liters;
+      byType[type].liters += litersInStretch;
     }
 
     // Price per liter: every entry of that type counts, regardless of
