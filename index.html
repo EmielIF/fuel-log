@@ -264,6 +264,16 @@
     gap: 12px;
     margin-bottom: 12px;
   }
+  .row.three-col { grid-template-columns: 1fr 1fr 1fr; }
+
+  .autocalc-hint {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+    margin-top: -6px;
+    margin-bottom: 12px;
+    min-height: 16px;
+  }
 
   label {
     display: block;
@@ -329,6 +339,11 @@
   .fuel-badge.e95 { color: #7dd3a0; border: 1px solid #2a4a36; }
   .fuel-badge.e98 { color: #f7933e; border: 1px solid #4a3520; }
   .fuel-badge.unknown { color: var(--muted); border: 1px solid var(--border); }
+
+  .emptiness-badge {
+    color: #a0c4ff;
+    border-color: #1e3a5a;
+  }
 
   .error {
     font-size: 12px;
@@ -483,6 +498,7 @@
   @media (max-width: 420px) {
     .stats { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
+    .row.three-col { grid-template-columns: 1fr; }
     .compare-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -520,16 +536,21 @@
       </div>
     </div>
 
-    <div class="row">
+    <div class="row three-col">
       <div>
-        <label for="liters">Fuel (liters)</label>
+        <label for="liters">Liters</label>
         <input type="number" inputmode="decimal" step="0.01" id="liters" placeholder="42.5" />
       </div>
       <div>
-        <label for="price">Total price (€)</label>
+        <label for="ppl">€ / liter</label>
+        <input type="number" inputmode="decimal" step="0.001" id="ppl" placeholder="1.950" />
+      </div>
+      <div>
+        <label for="price">Total (€)</label>
         <input type="number" inputmode="decimal" step="0.01" id="price" placeholder="78.30" />
       </div>
     </div>
+    <div class="autocalc-hint" id="autocalcHint"></div>
 
     <div style="margin-bottom: 16px;">
       <label>Fuel type</label>
@@ -636,6 +657,59 @@
   const reloadBtn = document.getElementById('reloadBtn');
   const setupBanner = document.getElementById('setupBanner');
   const fuelToggle = document.getElementById('fuelToggle');
+  const litersInput = document.getElementById('liters');
+  const pplInput = document.getElementById('ppl');
+  const priceInput = document.getElementById('price');
+  const autocalcHint = document.getElementById('autocalcHint');
+
+  // Auto-calculate the third field whenever two of the three are filled.
+  // Rounds to avoid floating point noise (e.g. 0.0000000001 remainder).
+  // Only writes to the field that is currently empty or was auto-filled,
+  // so manually typed values are never silently overwritten.
+  let autoFilledField = null;
+  function runAutoCalc() {
+    const l = parseFloat(litersInput.value);
+    const p = parseFloat(pplInput.value);
+    const t = parseFloat(priceInput.value);
+    const lOk = !isNaN(l) && l > 0;
+    const pOk = !isNaN(p) && p > 0;
+    const tOk = !isNaN(t) && t > 0;
+
+    if (lOk && pOk && !tOk) {
+      // liters × price/L → total
+      const calc = Math.round(l * p * 100) / 100;
+      priceInput.value = calc.toFixed(2);
+      autoFilledField = 'price';
+      autocalcHint.textContent = `Total auto-calculated from ${l}L × €${p}/L`;
+    } else if (lOk && tOk && !pOk) {
+      // total ÷ liters → price/L
+      const calc = Math.round((t / l) * 1000) / 1000;
+      pplInput.value = calc.toFixed(3);
+      autoFilledField = 'ppl';
+      autocalcHint.textContent = `Price/L auto-calculated from €${t} ÷ ${l}L`;
+    } else if (pOk && tOk && !lOk) {
+      // total ÷ price/L → liters
+      const calc = Math.round((t / p) * 100) / 100;
+      litersInput.value = calc.toFixed(2);
+      autoFilledField = 'liters';
+      autocalcHint.textContent = `Liters auto-calculated from €${t} ÷ €${p}/L`;
+    } else {
+      // If the auto-filled field was manually edited or all three filled,
+      // clear the hint but leave values alone.
+      autocalcHint.textContent = '';
+    }
+  }
+
+  // If a user edits a previously auto-filled field, clear the autofill
+  // state so it doesn't get overwritten again.
+  function onManualInput(field) {
+    if (autoFilledField === field) autoFilledField = null;
+    runAutoCalc();
+  }
+
+  litersInput.addEventListener('input', () => onManualInput('liters'));
+  pplInput.addEventListener('input', () => onManualInput('ppl'));
+  priceInput.addEventListener('input', () => onManualInput('price'));
 
   reloadBtn.addEventListener('click', () => fetchEntries());
 
@@ -732,10 +806,19 @@
     document.getElementById('full').checked = true;
     dateInput.value = new Date().toISOString().slice(0, 10);
     formError.style.display = 'none';
+    autocalcHint.textContent = '';
+    autoFilledField = null;
     selectedFuel = 'E95';
     fuelToggle.querySelectorAll('.fuel-option').forEach((b) => {
       b.classList.toggle('active', b.dataset.fuel === 'E95');
     });
+    // Set odometer placeholder to the highest logged mileage as a
+    // sanity-check anchor — lets you quickly spot a typo like 17800
+    // when your car is at 178000.
+    if (entries.length > 0) {
+      const lastMileage = Math.max(...entries.map((e) => e.mileage));
+      document.getElementById('mileage').placeholder = formatNum(lastMileage, 0) + ' (last)';
+    }
   }
 
   openFormBtn.addEventListener('click', () => {
@@ -750,14 +833,23 @@
   entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const m = parseFloat(document.getElementById('mileage').value);
-    const l = parseFloat(document.getElementById('liters').value);
-    const p = parseFloat(document.getElementById('price').value);
+    let l = parseFloat(litersInput.value);
+    let p = parseFloat(priceInput.value);
+    const ppl = parseFloat(pplInput.value);
     const d = dateInput.value || new Date().toISOString().slice(0, 10);
     const full = document.getElementById('full').checked;
 
+    // Resolve the missing field one final time on submit, in case the
+    // auto-calc hasn't fired yet (e.g. user tabbed straight to submit).
+    if (!isNaN(l) && l > 0 && !isNaN(ppl) && ppl > 0 && (isNaN(p) || p <= 0)) {
+      p = Math.round(l * ppl * 100) / 100;
+    } else if (!isNaN(l) && l > 0 && !isNaN(p) && p > 0 && (isNaN(ppl) || ppl <= 0)) {
+      // ppl not required for saving, just liters + total is enough
+    }
+
     if (!m || m <= 0) return showError('Enter a valid odometer reading.');
-    if (!l || l <= 0) return showError('Enter a valid amount of fuel.');
-    if (!p || p <= 0) return showError('Enter a valid price.');
+    if (!l || l <= 0) return showError('Enter a valid amount of fuel (liters).');
+    if (!p || p <= 0) return showError('Enter a valid total price or price per liter.');
     if (entries.some((en) => en.mileage === m)) return showError('An entry already exists at this mileage.');
 
     addEntry({ id: uid(), date: d, mileage: m, liters: l, price: p, full, fuelType: selectedFuel });
@@ -850,17 +942,54 @@
   // ~3.68 L per km (around 3125 L/hour at a cruise speed of ~850 km/h).
   // This is a rough average for illustration, not a precise model.
   function fuelFunFact(totalLiters) {
-    const B737_L_PER_KM = 3.68;
-    const equivKm = totalLiters / B737_L_PER_KM;
     const litersText = `<strong>${formatNum(totalLiters, 0)}L</strong>`;
-    if (equivKm < 1) {
-      const m = Math.round(equivKm * 1000);
-      return `You've used ${litersText} of fuel so far, that's enough to fly a Boeing 737 about ${m}m, barely off the runway.`;
+
+    // Pick a random aircraft comparison each page load. The 737 uses a
+    // distance metric (liters per km of cruise flight). The trainers use
+    // an hours metric (liters per hour at cruise) since that maps better
+    // to how training flights are thought about.
+    const AIRCRAFT = [
+      {
+        name: 'Boeing 737',
+        type: 'distance',
+        lPerKm: 3.68, // ~3125 L/h at ~850 km/h cruise
+        unit: (km) => {
+          if (km < 1) return `${Math.round(km * 1000)}m, barely off the runway`;
+          if (km < 100) return `${formatNum(km, 1)}km`;
+          return `${formatNum(km, 0)}km, roughly a short regional hop`;
+        },
+        sentence: (val) => `You've used ${litersText} of fuel so far. That's enough to fly a Boeing 737 about ${val}.`,
+      },
+      {
+        name: 'Diamond DA40',
+        type: 'time',
+        lPerHour: 31, // cruise burn at ~75% power
+        unit: (h) => {
+          if (h < 1) return `${Math.round(h * 60)} minutes`;
+          return `${formatNum(h, 1)} hours`;
+        },
+        sentence: (val) => `You've used ${litersText} of fuel so far. A Diamond DA40 burns about 31L/hour at cruise, so that's enough to keep one airborne for about ${val}.`,
+      },
+      {
+        name: 'Cessna 172',
+        type: 'time',
+        lPerHour: 36, // cruise burn at ~75% power
+        unit: (h) => {
+          if (h < 1) return `${Math.round(h * 60)} minutes`;
+          return `${formatNum(h, 1)} hours`;
+        },
+        sentence: (val) => `You've used ${litersText} of fuel so far. A Cessna 172 burns about 36L/hour at cruise, so that's enough for about ${val} of flight.`,
+      },
+    ];
+
+    const ac = AIRCRAFT[Math.floor(Math.random() * AIRCRAFT.length)];
+    if (ac.type === 'distance') {
+      const km = totalLiters / ac.lPerKm;
+      return ac.sentence(ac.unit(km));
+    } else {
+      const hours = totalLiters / ac.lPerHour;
+      return ac.sentence(ac.unit(hours));
     }
-    if (equivKm < 100) {
-      return `You've used ${litersText} of fuel so far, that's enough to fly a Boeing 737 about ${formatNum(equivKm, 1)}km.`;
-    }
-    return `You've used ${litersText} of fuel so far, that's enough to fly a Boeing 737 about ${formatNum(equivKm, 0)}km, roughly a short regional hop.`;
   }
 
   // CO2 emitted by burning the total logged liters of petrol. Uses the
@@ -1110,11 +1239,28 @@
       const fuelLabel = fuelLabels[e.fuelType] || '';
       const div = document.createElement('div');
       div.className = 'entry';
+
+      // Tank emptiness badge: only meaningful on a full fill-up since a
+      // partial doesn't tell you how empty you were. 207 CC tank is 53L.
+      const TANK_CAPACITY = 50;
+      let emptinessBadge = '';
+      if (e.full && e.liters > 0) {
+        const pct = Math.round((e.liters / TANK_CAPACITY) * 100);
+        const pctCapped = Math.min(pct, 100);
+        let label = '';
+        if (pctCapped >= 95) label = 'Nearly empty!';
+        else if (pctCapped >= 80) label = `${pctCapped}% empty`;
+        else if (pctCapped >= 60) label = `${pctCapped}% empty`;
+        else label = `${pctCapped}% empty`;
+        emptinessBadge = `<span class="badge emptiness-badge" title="${e.liters}L of ${TANK_CAPACITY}L capacity">${label}</span>`;
+      }
+
       div.innerHTML = `
         <div>
           <div class="entry-top">
             <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
             ${fuelLabel ? `<span class="fuel-badge ${fuelClass}">${fuelLabel}</span>` : ''}
+            ${emptinessBadge}
             ${!e.full ? '<span class="badge">partial</span>' : ''}
           </div>
           <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
