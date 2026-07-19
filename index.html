@@ -392,9 +392,10 @@
     border-radius: 12px;
     padding: 14px 16px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     margin-bottom: 8px;
+    gap: 12px;
   }
 
   .entry-top {
@@ -420,6 +421,27 @@
     font-size: 12px;
     color: var(--muted);
     font-family: 'DM Mono', monospace;
+  }
+
+  .entry-segment {
+    display: flex;
+    gap: 16px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .seg-item {
+    font-size: 12px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .seg-label {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
   }
 
   .entry-right {
@@ -1231,6 +1253,33 @@
 
     listLabel.textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, latest first`;
 
+    // Pre-compute segment data for every full fill-up that has a
+    // preceding full fill-up. A segment runs from prev (full) to cur
+    // (full), and its liters includes all fill-ups in between (partial
+    // or full) since those all contributed to that stretch of driving.
+    const sortedAsc = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fullFillUps = sortedAsc.filter((e) => e.full);
+    const segmentMap = {};
+    for (let i = 1; i < fullFillUps.length; i++) {
+      const prev = fullFillUps[i - 1];
+      const cur = fullFillUps[i];
+      const dist = cur.mileage - prev.mileage;
+      if (dist <= 0) continue;
+      const litersInStretch = sortedAsc
+        .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
+        .reduce((s, e) => s + e.liters, 0);
+      const totalCostInStretch = sortedAsc
+        .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
+        .reduce((s, e) => s + e.price, 0);
+      const consumption = (litersInStretch / dist) * 100;
+      const costPerKm = totalCostInStretch / dist;
+      const costPer100km = costPerKm * 100;
+      // Attach segment data to the fill-up that ENDS the segment (cur),
+      // since that's the entry shown in the list where it makes sense to
+      // display "you drove Xkm on this tank."
+      segmentMap[cur.id] = { dist, litersInStretch, consumption, costPerKm, costPer100km };
+    }
+
     const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
     sortedDesc.forEach((e) => {
       const pricePerLiter = e.price / e.liters;
@@ -1241,22 +1290,28 @@
       div.className = 'entry';
 
       // Tank emptiness badge: only meaningful on a full fill-up since a
-      // partial doesn't tell you how empty you were. 207 CC tank is 53L.
+      // partial doesn't tell you how empty you were. 207 CC tank is 50L.
       const TANK_CAPACITY = 50;
       let emptinessBadge = '';
       if (e.full && e.liters > 0) {
         const pct = Math.round((e.liters / TANK_CAPACITY) * 100);
         const pctCapped = Math.min(pct, 100);
-        let label = '';
-        if (pctCapped >= 95) label = 'Nearly empty!';
-        else if (pctCapped >= 80) label = `${pctCapped}% empty`;
-        else if (pctCapped >= 60) label = `${pctCapped}% empty`;
-        else label = `${pctCapped}% empty`;
+        let label = pctCapped >= 95 ? 'Nearly empty!' : `${pctCapped}% empty`;
         emptinessBadge = `<span class="badge emptiness-badge" title="${e.liters}L of ${TANK_CAPACITY}L capacity">${label}</span>`;
       }
 
+      // Segment row: shown below the main meta line when this entry
+      // is a full fill-up that completes a measurable segment.
+      const seg = segmentMap[e.id];
+      const segRow = seg ? `
+        <div class="entry-segment">
+          <span class="seg-item"><span class="seg-label">Gereden</span>${formatNum(seg.dist, 0)} km</span>
+          <span class="seg-item"><span class="seg-label">Verbruik</span>${formatNum(seg.consumption, 1)} L/100km</span>
+          <span class="seg-item"><span class="seg-label">Kosten/100km</span>€${formatNum(seg.costPer100km, 2)}</span>
+        </div>` : '';
+
       div.innerHTML = `
-        <div>
+        <div style="flex:1; min-width:0;">
           <div class="entry-top">
             <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
             ${fuelLabel ? `<span class="fuel-badge ${fuelClass}">${fuelLabel}</span>` : ''}
@@ -1264,6 +1319,7 @@
             ${!e.full ? '<span class="badge">partial</span>' : ''}
           </div>
           <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
+          ${segRow}
         </div>
         <div class="entry-right">
           <span class="entry-price">€${formatNum(e.price, 2)}</span>
