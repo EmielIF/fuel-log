@@ -423,25 +423,48 @@
     font-family: 'DM Mono', monospace;
   }
 
-  .entry-segment {
-    display: flex;
-    gap: 16px;
-    margin-top: 6px;
-    flex-wrap: wrap;
-  }
-  .seg-item {
-    font-size: 12px;
-    font-family: 'DM Mono', monospace;
-    color: var(--text);
+  .segment-connector {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    margin: 0 12px;
+  }
+  .segment-line {
+    width: 1px;
+    height: 10px;
+    background: var(--border);
+  }
+  .segment-pill {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 14px;
+    gap: 10px;
+  }
+  .seg-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 1px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
   }
   .seg-label {
-    font-size: 9px;
-    letter-spacing: 0.1em;
+    font-size: 8px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+  .seg-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    flex-shrink: 0;
   }
 
   .entry-right {
@@ -1253,13 +1276,13 @@
 
     listLabel.textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, latest first`;
 
-    // Pre-compute segment data for every full fill-up that has a
-    // preceding full fill-up. A segment runs from prev (full) to cur
-    // (full), and its liters includes all fill-ups in between (partial
-    // or full) since those all contributed to that stretch of driving.
+    // Pre-compute segment data keyed on the HIGHER-mileage (earlier in
+    // time) full fill-up's id. When rendering descending, after we draw
+    // that entry we immediately insert the connector below it, so it
+    // sits visually between that entry and the next (lower-mileage) one.
     const sortedAsc = [...entries].sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = sortedAsc.filter((e) => e.full);
-    const segmentMap = {};
+    const segmentAfter = {};
     for (let i = 1; i < fullFillUps.length; i++) {
       const prev = fullFillUps[i - 1];
       const cur = fullFillUps[i];
@@ -1273,11 +1296,10 @@
         .reduce((s, e) => s + e.price, 0);
       const consumption = (litersInStretch / dist) * 100;
       const costPerKm = totalCostInStretch / dist;
-      const costPer100km = costPerKm * 100;
-      // Attach segment data to the fill-up that ENDS the segment (cur),
-      // since that's the entry shown in the list where it makes sense to
-      // display "you drove Xkm on this tank."
-      segmentMap[cur.id] = { dist, litersInStretch, consumption, costPerKm, costPer100km };
+      // Key on cur.id (the HIGHER-mileage tank that starts this segment
+      // in time). In descending display order, cur appears above prev,
+      // so the connector goes below cur — exactly between the two entries.
+      segmentAfter[cur.id] = { dist, consumption, costPerKm };
     }
 
     const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
@@ -1289,26 +1311,14 @@
       const div = document.createElement('div');
       div.className = 'entry';
 
-      // Tank emptiness badge: only meaningful on a full fill-up since a
-      // partial doesn't tell you how empty you were. 207 CC tank is 50L.
       const TANK_CAPACITY = 50;
       let emptinessBadge = '';
       if (e.full && e.liters > 0) {
         const pct = Math.round((e.liters / TANK_CAPACITY) * 100);
         const pctCapped = Math.min(pct, 100);
-        let label = pctCapped >= 95 ? 'Nearly empty!' : `${pctCapped}% empty`;
+        const label = pctCapped >= 95 ? 'Nearly empty!' : `${pctCapped}% empty`;
         emptinessBadge = `<span class="badge emptiness-badge" title="${e.liters}L of ${TANK_CAPACITY}L capacity">${label}</span>`;
       }
-
-      // Segment row: shown below the main meta line when this entry
-      // is a full fill-up that completes a measurable segment.
-      const seg = segmentMap[e.id];
-      const segRow = seg ? `
-        <div class="entry-segment">
-          <span class="seg-item"><span class="seg-label">Gereden</span>${formatNum(seg.dist, 0)} km</span>
-          <span class="seg-item"><span class="seg-label">Verbruik</span>${formatNum(seg.consumption, 1)} L/100km</span>
-          <span class="seg-item"><span class="seg-label">Kosten/100km</span>€${formatNum(seg.costPer100km, 2)}</span>
-        </div>` : '';
 
       div.innerHTML = `
         <div style="flex:1; min-width:0;">
@@ -1319,7 +1329,6 @@
             ${!e.full ? '<span class="badge">partial</span>' : ''}
           </div>
           <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
-          ${segRow}
         </div>
         <div class="entry-right">
           <span class="entry-price">€${formatNum(e.price, 2)}</span>
@@ -1328,6 +1337,34 @@
           </button>
         </div>`;
       container.appendChild(div);
+
+      // If this entry starts a segment, insert a visual connector below
+      // it before the next entry is rendered.
+      const seg = segmentAfter[e.id];
+      if (seg) {
+        const connector = document.createElement('div');
+        connector.className = 'segment-connector';
+        connector.innerHTML = `
+          <div class="segment-line"></div>
+          <div class="segment-pill">
+            <span class="seg-stat">
+              <span class="seg-label">Gereden</span>
+              ${formatNum(seg.dist, 0)} km
+            </span>
+            <span class="seg-divider"></span>
+            <span class="seg-stat">
+              <span class="seg-label">Verbruik</span>
+              ${formatNum(seg.consumption, 1)} L/100km
+            </span>
+            <span class="seg-divider"></span>
+            <span class="seg-stat">
+              <span class="seg-label">Kosten/km</span>
+              €${formatNum(seg.costPerKm, 3)}
+            </span>
+          </div>
+          <div class="segment-line"></div>`;
+        container.appendChild(connector);
+      }
     });
 
     container.querySelectorAll('.delete-btn').forEach((btn) => {
