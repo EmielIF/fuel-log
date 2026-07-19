@@ -444,6 +444,10 @@
     padding: 5px 14px;
     gap: 10px;
   }
+  .segment-pill-partial {
+    border-style: dashed;
+    opacity: 0.7;
+  }
   .seg-stat {
     display: flex;
     flex-direction: column;
@@ -1281,6 +1285,8 @@
     const sortedAsc = [...entries].sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = sortedAsc.filter((e) => e.full);
     const segmentAfter = {};
+
+    // Full-tank segments: reliable consumption + cost data.
     for (let i = 1; i < fullFillUps.length; i++) {
       const prev = fullFillUps[i - 1];
       const cur = fullFillUps[i];
@@ -1294,10 +1300,20 @@
         .reduce((s, e) => s + e.price, 0);
       const consumption = (litersInStretch / dist) * 100;
       const costPerKm = totalCostInStretch / dist;
-      // Key on cur.id (the HIGHER-mileage tank that starts this segment
-      // in time). In descending display order, cur appears above prev,
-      // so the connector goes below cur — exactly between the two entries.
-      segmentAfter[cur.id] = { dist, consumption, costPerKm };
+      segmentAfter[cur.id] = { dist, consumption, costPerKm, reliable: true };
+    }
+
+    // All consecutive fill-ups: distance is always reliable regardless
+    // of full/partial status. Only add a connector here if there isn't
+    // already a full-tank connector for this pair (avoid duplicates).
+    for (let i = 1; i < sortedAsc.length; i++) {
+      const prev = sortedAsc[i - 1];
+      const cur = sortedAsc[i];
+      const dist = cur.mileage - prev.mileage;
+      if (dist <= 0) continue;
+      if (!segmentAfter[cur.id]) {
+        segmentAfter[cur.id] = { dist, consumption: null, costPerKm: null, reliable: false };
+      }
     }
 
     const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
@@ -1342,13 +1358,7 @@
       if (seg) {
         const connector = document.createElement('div');
         connector.className = 'segment-connector';
-        connector.innerHTML = `
-          <div class="segment-line"></div>
-          <div class="segment-pill">
-            <span class="seg-stat">
-              <span class="seg-label">Gereden</span>
-              ${formatNum(seg.dist, 0)} km
-            </span>
+        const statsHtml = seg.reliable ? `
             <span class="seg-divider"></span>
             <span class="seg-stat">
               <span class="seg-label">Verbruik</span>
@@ -1358,7 +1368,15 @@
             <span class="seg-stat">
               <span class="seg-label">Kosten/km</span>
               €${formatNum(seg.costPerKm, 3)}
+            </span>` : '';
+        connector.innerHTML = `
+          <div class="segment-line"></div>
+          <div class="segment-pill${seg.reliable ? '' : ' segment-pill-partial'}">
+            <span class="seg-stat">
+              <span class="seg-label">Gereden</span>
+              ${formatNum(seg.dist, 0)} km
             </span>
+            ${statsHtml}
           </div>
           <div class="segment-line"></div>`;
         container.appendChild(connector);
