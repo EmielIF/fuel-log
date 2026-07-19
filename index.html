@@ -720,33 +720,31 @@
     const pOk = !isNaN(p) && p > 0;
     const tOk = !isNaN(t) && t > 0;
 
-    if (lOk && pOk && !tOk) {
-      // liters × price/L → total
+    // Recalculate if the target field is empty OR was previously
+    // auto-filled (so corrections to field 1 or 2 update field 3
+    // rather than leaving a stale value from the first calculation).
+    if (lOk && pOk && (!tOk || autoFilledField === 'price')) {
       const calc = Math.round(l * p * 100) / 100;
       priceInput.value = calc.toFixed(2);
       autoFilledField = 'price';
-      autocalcHint.textContent = `Total auto-calculated from ${l}L × €${p}/L`;
-    } else if (lOk && tOk && !pOk) {
-      // total ÷ liters → price/L
+      autocalcHint.textContent = `Totaal berekend: ${l}L × €${p}/L`;
+    } else if (lOk && tOk && (!pOk || autoFilledField === 'ppl')) {
       const calc = Math.round((t / l) * 1000) / 1000;
       pplInput.value = calc.toFixed(3);
       autoFilledField = 'ppl';
-      autocalcHint.textContent = `Price/L auto-calculated from €${t} ÷ ${l}L`;
-    } else if (pOk && tOk && !lOk) {
-      // total ÷ price/L → liters
+      autocalcHint.textContent = `Prijs/L berekend: €${t} ÷ ${l}L`;
+    } else if (pOk && tOk && (!lOk || autoFilledField === 'liters')) {
       const calc = Math.round((t / p) * 100) / 100;
       litersInput.value = calc.toFixed(2);
       autoFilledField = 'liters';
-      autocalcHint.textContent = `Liters auto-calculated from €${t} ÷ €${p}/L`;
+      autocalcHint.textContent = `Liters berekend: €${t} ÷ €${p}/L`;
     } else {
-      // If the auto-filled field was manually edited or all three filled,
-      // clear the hint but leave values alone.
       autocalcHint.textContent = '';
     }
   }
 
-  // If a user edits a previously auto-filled field, clear the autofill
-  // state so it doesn't get overwritten again.
+  // Als de gebruiker een auto-ingevuld veld zelf aanpast, behandel het
+  // dan als handmatig en overschrijf het niet meer bij herberekening.
   function onManualInput(field) {
     if (autoFilledField === field) autoFilledField = null;
     runAutoCalc();
