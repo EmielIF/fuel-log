@@ -752,9 +752,9 @@
     runAutoCalc();
   }
 
-  litersInput.addEventListener('input', () => onManualInput('liters'));
-  pplInput.addEventListener('input', () => onManualInput('ppl'));
-  priceInput.addEventListener('input', () => onManualInput('price'));
+  litersInput.addEventListener('change', () => onManualInput('liters'));
+  pplInput.addEventListener('change', () => onManualInput('ppl'));
+  priceInput.addEventListener('change', () => onManualInput('price'));
 
   reloadBtn.addEventListener('click', () => fetchEntries());
 
