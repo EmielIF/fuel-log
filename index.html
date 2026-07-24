@@ -19,6 +19,7 @@
     --accent-hover: #ffa55c;
     --oil-accent: #e5a93c;
     --other-accent: #6b8af0;
+    --rec-accent: #4ade80;
     --danger: #ff6b6b;
   }
 
@@ -45,12 +46,6 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 12px;
-    gap: 12px;
-  }
-  
-  .header-title-row {
-    display: flex;
-    align-items: center;
     gap: 12px;
   }
 
@@ -202,7 +197,7 @@
 
   .form-type-toggle {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
     margin-bottom: 16px;
   }
@@ -210,10 +205,10 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px;
+    padding: 8px 4px;
     color: var(--muted);
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
     transition: all 0.15s;
   }
   .form-type-btn.active[data-type="oil"] {
@@ -225,6 +220,11 @@
     border-color: var(--other-accent);
     color: var(--other-accent);
     background: rgba(107, 138, 240, 0.08);
+  }
+  .form-type-btn.active[data-type="recurring"] {
+    border-color: var(--rec-accent);
+    color: var(--rec-accent);
+    background: rgba(74, 222, 128, 0.08);
   }
 
   .row {
@@ -299,6 +299,7 @@
     color: var(--accent);
     background: rgba(247, 147, 62, 0.08);
   }
+  
   .fuel-badge {
     font-size: 9px;
     text-transform: uppercase;
@@ -389,9 +390,11 @@
   .delete-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
   #recurringList {
-    max-height: 250px;
-    overflow-y: auto;
     margin-bottom: 24px;
+  }
+  #recurringList .entry {
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
   }
 
   @media (max-width: 500px) {
@@ -409,10 +412,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
         <span>Vehicle Log</span>
       </div>
-      <div class="header-title-row">
-        <h1>Peugeot 207 CC</h1>
-        <button type="button" class="btn-subtle" id="openSettingsBtn" style="font-size:16px; padding:2px 6px;" title="Vaste lasten instellen">⚙️</button>
-      </div>
+      <h1>Peugeot 207 CC</h1>
     </div>
     <button class="btn-primary" id="openFormBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -420,39 +420,7 @@
     </button>
   </div>
 
-  <!-- VASTE LASTEN PANEL -->
-  <div class="panel" id="settingsForm">
-    <div class="panel-header">
-      <h2>🗓️ Vaste Lasten / Abonnementen</h2>
-      <button type="button" class="btn-subtle" id="closeSettingsBtn">✕</button>
-    </div>
-    <p style="font-size: 12px; color: var(--muted); margin-top: -6px; margin-bottom: 16px; line-height: 1.4;">
-      Het systeem voegt deze kosten automatisch maandelijks toe in je logboek op basis van de startdatum. <strong>Als een prijs verandert, verwijder je de oude hier en maak je een nieuwe aan.</strong>
-    </p>
-    
-    <div id="recurringList"></div>
-    
-    <div style="border-top: 1px solid var(--border); padding-top: 16px;">
-      <h3 style="font-size: 12px; font-weight:600; color:var(--text); margin: 0 0 12px;">Nieuwe regel toevoegen</h3>
-      <div style="margin-bottom: 12px;">
-        <label>Omschrijving</label>
-        <input type="text" id="recTitle" placeholder="Bijv. Wegenbelasting" />
-      </div>
-      <div class="row">
-        <div>
-          <label>Startdatum</label>
-          <input type="date" id="recDate" />
-        </div>
-        <div>
-          <label>Bedrag /mnd (€)</label>
-          <input type="number" inputmode="decimal" step="0.01" id="recPrice" placeholder="80.00" />
-        </div>
-      </div>
-      <button type="button" class="btn-submit" id="saveRecBtn" style="margin-top: 12px;">Regel opslaan</button>
-    </div>
-  </div>
-
-  <!-- LOGBOEK PANEL -->
+  <!-- HOOFDFORMULIER (Alles In 1) -->
   <form class="panel" id="entryForm">
     <div class="panel-header">
       <h2 id="formHeaderTitle">Nieuwe tankbeurt</h2>
@@ -462,13 +430,15 @@
       </div>
     </div>
 
-    <!-- Toggle that only shows when 'Anders' is clicked -->
+    <!-- Toggle menuutje -->
     <div class="form-type-toggle" id="formTypeToggle" style="display:none;">
       <button type="button" class="form-type-btn active" data-type="oil">🛢️ Olie</button>
       <button type="button" class="form-type-btn" data-type="other">🛠️ Overig</button>
+      <button type="button" class="form-type-btn" data-type="recurring">🗓️ Maandlasten</button>
     </div>
 
-    <div class="row">
+    <!-- Gedeelde Odometer / Datum velden -->
+    <div class="row" id="commonFields">
       <div>
         <label for="mileage">Odometer (km)</label>
         <input type="number" inputmode="decimal" id="mileage" placeholder="48210" />
@@ -479,7 +449,7 @@
       </div>
     </div>
 
-    <!-- FUEL FIELDS (Default visible) -->
+    <!-- BRANDSTOF VELDEN -->
     <div id="fuelFields">
       <div class="row three-col">
         <div>
@@ -511,7 +481,7 @@
       </label>
     </div>
 
-    <!-- OIL FIELDS -->
+    <!-- OLIE VELDEN -->
     <div id="oilFields" style="display: none;">
       <div class="row">
         <div>
@@ -525,7 +495,7 @@
       </div>
     </div>
 
-    <!-- OTHER FIELDS -->
+    <!-- OVERIGE VELDEN -->
     <div id="otherFields" style="display: none;">
       <div style="margin-bottom: 12px;">
         <label for="otherTitle">Omschrijving (bijv. Aanschaf, APK, Banden)</label>
@@ -534,6 +504,33 @@
       <div style="width: 50%; margin-bottom: 16px;">
         <label for="otherPrice">Totale kosten (€)</label>
         <input type="number" inputmode="decimal" step="0.01" id="otherPrice" placeholder="450.00" />
+      </div>
+    </div>
+
+    <!-- VASTE MAANDLASTEN VELDEN -->
+    <div id="recurringFields" style="display: none;">
+      <p style="font-size: 11px; color: var(--muted); margin-bottom: 16px; margin-top: -4px;">
+        Vaste lasten worden vanaf de startdatum automatisch maandelijks aan je logboek toegevoegd. Wijziging in prijs? Verwijder de oude hier en start een nieuwe.
+      </p>
+      
+      <div id="recurringList"></div>
+      
+      <div style="border-top: 1px solid var(--border); padding-top: 16px;">
+        <h3 style="font-size: 12px; font-weight:600; color:var(--text); margin: 0 0 12px;">Nieuwe regel toevoegen</h3>
+        <div style="margin-bottom: 12px;">
+          <label>Omschrijving</label>
+          <input type="text" id="recTitle" placeholder="Bijv. Wegenbelasting" />
+        </div>
+        <div class="row">
+          <div>
+            <label>Startdatum</label>
+            <input type="date" id="recDate" />
+          </div>
+          <div>
+            <label>Bedrag /mnd (€)</label>
+            <input type="number" inputmode="decimal" step="0.01" id="recPrice" placeholder="80.00" />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -574,6 +571,7 @@
 
 <script>
   // ──────────────────────────────────────────────────────────────
+  // Jouw eigen API URL staat er weer strak in!
   const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbxIwSLINCii0ktt7adPDeT-Xno5NivpptTmZWWbTLcoy6H9JHAD2q3dnNPsZaU55R7Pmw/exec";
   // ──────────────────────────────────────────────────────────────
 
@@ -601,13 +599,14 @@
   let selectedFuel = 'E95';
 
   const entryForm = document.getElementById('entryForm');
-  const settingsForm = document.getElementById('settingsForm');
   const formHeaderTitle = document.getElementById('formHeaderTitle');
   const toggleModeBtn = document.getElementById('toggleModeBtn');
   const formTypeToggle = document.getElementById('formTypeToggle');
+  const commonFields = document.getElementById('commonFields');
   const fuelFields = document.getElementById('fuelFields');
   const oilFields = document.getElementById('oilFields');
   const otherFields = document.getElementById('otherFields');
+  const recurringFields = document.getElementById('recurringFields');
   
   const formError = document.getElementById('formError');
   const dateInput = document.getElementById('date');
@@ -618,28 +617,43 @@
   const pplInput = document.getElementById('ppl');
   const priceInput = document.getElementById('price');
   
-  // Update view logic
   function updateFormView() {
+    formError.style.display = 'none';
+
     if (formMode === 'fuel') {
       formHeaderTitle.textContent = 'Nieuwe tankbeurt';
       toggleModeBtn.textContent = '⋯ Anders';
       formTypeToggle.style.display = 'none';
       
+      commonFields.style.display = 'grid';
       fuelFields.style.display = 'block';
       oilFields.style.display = 'none';
       otherFields.style.display = 'none';
+      recurringFields.style.display = 'none';
+      submitBtn.textContent = 'Save entry';
     } else {
-      formHeaderTitle.textContent = 'Overige kosten';
+      formHeaderTitle.textContent = 'Overige registraties';
       toggleModeBtn.textContent = '⛽ Terug naar tanken';
       formTypeToggle.style.display = 'grid';
-      
       fuelFields.style.display = 'none';
-      if (secondaryType === 'oil') {
-        oilFields.style.display = 'block';
-        otherFields.style.display = 'none';
-      } else {
+      
+      if (secondaryType === 'recurring') {
+        commonFields.style.display = 'none'; // Niet nodig voor vaste lasten
         oilFields.style.display = 'none';
-        otherFields.style.display = 'block';
+        otherFields.style.display = 'none';
+        recurringFields.style.display = 'block';
+        submitBtn.textContent = 'Abonnement opslaan';
+      } else {
+        commonFields.style.display = 'grid';
+        recurringFields.style.display = 'none';
+        submitBtn.textContent = 'Save entry';
+        if (secondaryType === 'oil') {
+          oilFields.style.display = 'block';
+          otherFields.style.display = 'none';
+        } else {
+          oilFields.style.display = 'none';
+          otherFields.style.display = 'block';
+        }
       }
     }
   }
@@ -695,25 +709,13 @@
 
   document.getElementById('reloadBtn').addEventListener('click', fetchEntries);
 
-  // Settings Panel Toggles
-  document.getElementById('openSettingsBtn').addEventListener('click', () => {
-    entryForm.classList.remove('open');
-    settingsForm.classList.add('open');
-    document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
-    renderRecurring();
-  });
-
-  document.getElementById('closeSettingsBtn').addEventListener('click', () => {
-    settingsForm.classList.remove('open');
-  });
-
-  // Entry Form Toggles
+  // Open Form
   document.getElementById('openFormBtn').addEventListener('click', () => {
-    settingsForm.classList.remove('open');
     entryForm.classList.add('open');
     entryForm.reset();
     document.getElementById('full').checked = true;
     dateInput.value = new Date().toISOString().slice(0, 10);
+    document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
     formError.style.display = 'none';
     formMode = 'fuel';
     updateFormView();
@@ -724,48 +726,25 @@
 
   document.getElementById('closeFormBtn').addEventListener('click', () => entryForm.classList.remove('open'));
 
-  // Save Recurring Entry
-  document.getElementById('saveRecBtn').addEventListener('click', async () => {
-    const title = document.getElementById('recTitle').value.trim();
-    const date = document.getElementById('recDate').value;
-    const price = parseFloat(document.getElementById('recPrice').value);
-    
-    if (!title || !date || isNaN(price) || price <= 0) {
-      alert("Vul alle velden goed in.");
-      return;
-    }
-    
-    const btn = document.getElementById('saveRecBtn');
-    btn.disabled = true;
-    btn.textContent = 'Opslaan...';
-    
-    const entry = { id: uid(), title, date, price };
-    
-    try {
-      const res = await fetch(FUEL_API_URL, { method: 'POST', body: JSON.stringify({ action: 'add_recurring', entry }) });
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error);
-      
-      recurringEntries.push(entry);
-      document.getElementById('recTitle').value = '';
-      document.getElementById('recPrice').value = '';
-      renderRecurring();
-    } catch (err) {
-      alert('Fout: ' + err.message);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Regel opslaan';
-    }
-  });
-
-  // Form Submit (Logs)
+  // Form Submit (Voor alles tegelijk)
   entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    const actualType = formMode === 'fuel' ? 'fuel' : secondaryType;
+
+    // VASTE LASTEN OPSLAAN
+    if (actualType === 'recurring') {
+      let t = document.getElementById('recTitle').value.trim();
+      let d = document.getElementById('recDate').value;
+      let p = parseFloat(document.getElementById('recPrice').value);
+      if (!t || !d || isNaN(p) || p <= 0) return showError('Vul alle velden voor maandlasten in.');
+      addRecurringEntry({ id: uid(), title: t, date: d, price: p });
+      return;
+    }
+
+    // REGULIERE LOGS OPSLAAN
     const m = parseFloat(document.getElementById('mileage').value);
     const d = dateInput.value || new Date().toISOString().slice(0, 10);
     if (!m || m <= 0) return showError('Enter a valid odometer reading.');
-
-    const actualType = formMode === 'fuel' ? 'fuel' : secondaryType;
 
     if (actualType === 'fuel') {
       let l = parseFloat(litersInput.value);
@@ -807,7 +786,7 @@
       recurringEntries = data.recurring || [];
       setSyncStatus('ok', 'Synced with Google Sheet');
     } catch (err) {
-      setSyncStatus('err', 'Could not reach your sheet.', String(err));
+      setSyncStatus('err', 'Could not reach je sheet.', String(err));
     }
     render();
     renderRecurring();
@@ -829,13 +808,31 @@
     }
   }
 
-  async function deleteEntry(id) {
+  async function addRecurringEntry(entry) {
+    submitBtn.disabled = true; submitBtn.textContent = 'Saving...';
+    try {
+      const res = await fetch(FUEL_API_URL, { method: 'POST', body: JSON.stringify({ action: 'add_recurring', entry }) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      
+      recurringEntries.push(entry);
+      document.getElementById('recTitle').value = '';
+      document.getElementById('recPrice').value = '';
+      renderRecurring();
+      entryForm.classList.remove('open');
+    } catch (err) {
+      showError('Fout: ' + err.message);
+    } finally {
+      submitBtn.disabled = false; submitBtn.textContent = 'Abonnement opslaan';
+    }
+  }
+
+  window.deleteEntry = async function(id) {
     try {
       const res = await fetch(FUEL_API_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       
-      // Update de lokale arrays direct zodat de app snappy aanvoelt
       entries = entries.filter((en) => en.id !== id);
       recurringEntries = recurringEntries.filter((en) => en.id !== id);
       
@@ -849,7 +846,7 @@
   function renderRecurring() {
     const list = document.getElementById('recurringList');
     if (!recurringEntries || recurringEntries.length === 0) {
-      list.innerHTML = '<div style="font-size:12px; color:var(--muted); text-align:center; padding: 20px 0; border: 1px dashed var(--border); border-radius: 8px;">Je hebt nog geen vaste lasten ingesteld.</div>';
+      list.innerHTML = '';
       return;
     }
     
@@ -860,18 +857,17 @@
             <span class="entry-mileage">${e.title}</span>
             <span class="fuel-badge recurring">Actief</span>
           </div>
-          <div class="entry-meta">Start: ${formatDateDisplay(e.date)}</div>
+          <div class="entry-meta">Vanaf: ${formatDateDisplay(e.date)}</div>
         </div>
         <div class="entry-right">
           <span class="entry-price">€${formatNum(e.price, 2)}/mnd</span>
-          <button class="delete-btn" onclick="deleteEntry('${e.id}')" title="Stopzetten">✕</button>
+          <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')" title="Stopzetten">✕</button>
         </div>
       </div>
     `).join('');
   }
 
   function render() {
-    // Computations
     const fuelEntries = entries.filter(e => e.type === 'fuel').sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = fuelEntries.filter(e => e.full);
     let avgConsumption = null, totalDist = 0;
@@ -921,7 +917,7 @@
           </div>
           <div class="entry-right">
             ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
-            <button class="delete-btn" data-id="${e.id}">✕</button>
+            <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
           </div>`;
       } 
       else if (e.type === 'other') {
@@ -932,11 +928,10 @@
           </div>
           <div class="entry-right">
             ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
-            <button class="delete-btn" data-id="${e.id}">✕</button>
+            <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
           </div>`;
       } 
       else {
-        // Fuel
         const emptinessBadge = (e.full && e.liters > 0) ? `<span class="badge emptiness-badge">${Math.min(Math.round((e.liters / 50) * 100), 100)}% empty</span>` : '';
         div.innerHTML = `
           <div style="flex:1; min-width:0;">
@@ -945,13 +940,11 @@
           </div>
           <div class="entry-right">
             <span class="entry-price">€${formatNum(e.price, 2)}</span>
-            <button class="delete-btn" data-id="${e.id}">✕</button>
+            <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
           </div>`;
       }
       container.appendChild(div);
     });
-
-    container.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => deleteEntry(btn.dataset.id)));
   }
 
   fetchEntries();
