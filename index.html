@@ -351,17 +351,37 @@
     margin-bottom: 12px;
   }
 
-  .month-header {
+  /* ACCORDION STYLING VOOR MAANDEN */
+  details.month-group {
+    margin-bottom: 16px;
+  }
+  details.month-group > summary {
     font-size: 10px;
     letter-spacing: 0.15em;
     text-transform: uppercase;
     color: var(--accent);
-    margin: 24px 0 12px;
+    cursor: pointer;
+    margin-bottom: 12px;
     padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    list-style: none;
+    outline: none;
   }
-  .month-header:first-child {
-    margin-top: 0;
+  details.month-group > summary::-webkit-details-marker {
+    display: none;
+  }
+  details.month-group > summary::after {
+    content: '▼';
+    font-size: 10px;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+  }
+  details.month-group[open] > summary::after {
+    transform: rotate(180deg);
   }
 
   .entry {
@@ -916,28 +936,37 @@
     container.innerHTML = '';
     document.getElementById('listLabel').textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, per maand`;
 
-    // Sorteer op datum in plaats van kilometerstand
     const sortedDesc = [...entries].sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
       if (dateB > dateA) return 1;
       if (dateB < dateA) return -1;
-      return b.mileage - a.mileage; // Als de datum gelijk is, hoogste kilometerstand eerst
+      return b.mileage - a.mileage;
     });
 
     const monthNames = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
     let currentMonth = '';
+    let currentDetails = null;
+    let isFirstMonth = true;
 
     sortedDesc.forEach((e) => {
       const d = new Date(e.date);
       const monthStr = monthNames[d.getMonth()] + ' ' + d.getFullYear();
       
-      // Voeg een nieuw kopje toe als de maand verandert
       if (monthStr !== currentMonth) {
-        const header = document.createElement('div');
-        header.className = 'month-header';
-        header.textContent = monthStr;
-        container.appendChild(header);
+        currentDetails = document.createElement('details');
+        currentDetails.className = 'month-group';
+        
+        if (isFirstMonth) {
+          currentDetails.open = true;
+          isFirstMonth = false;
+        }
+
+        const summary = document.createElement('summary');
+        summary.textContent = monthStr;
+        
+        currentDetails.appendChild(summary);
+        container.appendChild(currentDetails);
         currentMonth = monthStr;
       }
 
@@ -978,7 +1007,7 @@
             <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
           </div>`;
       }
-      container.appendChild(div);
+      currentDetails.appendChild(div);
     });
   }
 
