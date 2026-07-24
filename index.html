@@ -48,6 +48,12 @@
     margin-bottom: 12px;
     gap: 12px;
   }
+  
+  .header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
   .eyebrow {
     display: flex;
@@ -345,6 +351,19 @@
     margin-bottom: 12px;
   }
 
+  .month-header {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 24px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .month-header:first-child {
+    margin-top: 0;
+  }
+
   .entry {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -571,8 +590,7 @@
 
 <script>
   // ──────────────────────────────────────────────────────────────
-  // Jouw eigen API URL staat er weer strak in!
-  const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbxIwSLINCii0ktt7adPDeT-Xno5NivpptTmZWWbTLcoy6H9JHAD2q3dnNPsZaU55R7Pmw/exec";
+  const FUEL_API_URL = "PASTE_YOUR_API_URL_HERE";
   // ──────────────────────────────────────────────────────────────
 
   function formatNum(n, digits = 1) {
@@ -638,7 +656,7 @@
       fuelFields.style.display = 'none';
       
       if (secondaryType === 'recurring') {
-        commonFields.style.display = 'none'; // Niet nodig voor vaste lasten
+        commonFields.style.display = 'none'; 
         oilFields.style.display = 'none';
         otherFields.style.display = 'none';
         recurringFields.style.display = 'block';
@@ -678,7 +696,6 @@
     document.getElementById('fuelToggle').querySelectorAll('.fuel-option').forEach(b => b.classList.toggle('active', b === btn));
   });
 
-  // Auto-calc for fuel
   let autoFilledField = null;
   function runAutoCalc() {
     const l = parseFloat(litersInput.value);
@@ -709,7 +726,6 @@
 
   document.getElementById('reloadBtn').addEventListener('click', fetchEntries);
 
-  // Open Form
   document.getElementById('openFormBtn').addEventListener('click', () => {
     entryForm.classList.add('open');
     entryForm.reset();
@@ -726,12 +742,10 @@
 
   document.getElementById('closeFormBtn').addEventListener('click', () => entryForm.classList.remove('open'));
 
-  // Form Submit (Voor alles tegelijk)
   entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const actualType = formMode === 'fuel' ? 'fuel' : secondaryType;
 
-    // VASTE LASTEN OPSLAAN
     if (actualType === 'recurring') {
       let t = document.getElementById('recTitle').value.trim();
       let d = document.getElementById('recDate').value;
@@ -741,7 +755,6 @@
       return;
     }
 
-    // REGULIERE LOGS OPSLAAN
     const m = parseFloat(document.getElementById('mileage').value);
     const d = dateInput.value || new Date().toISOString().slice(0, 10);
     if (!m || m <= 0) return showError('Enter a valid odometer reading.');
@@ -769,7 +782,6 @@
 
   function showError(msg) { formError.textContent = msg; formError.style.display = 'block'; }
 
-  // API calls
   function setSyncStatus(state, message, detail) {
     const dot = document.getElementById('syncDot');
     dot.className = 'sync-dot ' + state;
@@ -902,10 +914,33 @@
 
     const container = document.getElementById('entriesContainer');
     container.innerHTML = '';
-    document.getElementById('listLabel').textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, latest first`;
+    document.getElementById('listLabel').textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, per maand`;
 
-    const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
+    // Sorteer op datum in plaats van kilometerstand
+    const sortedDesc = [...entries].sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      if (dateB > dateA) return 1;
+      if (dateB < dateA) return -1;
+      return b.mileage - a.mileage; // Als de datum gelijk is, hoogste kilometerstand eerst
+    });
+
+    const monthNames = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
+    let currentMonth = '';
+
     sortedDesc.forEach((e) => {
+      const d = new Date(e.date);
+      const monthStr = monthNames[d.getMonth()] + ' ' + d.getFullYear();
+      
+      // Voeg een nieuw kopje toe als de maand verandert
+      if (monthStr !== currentMonth) {
+        const header = document.createElement('div');
+        header.className = 'month-header';
+        header.textContent = monthStr;
+        container.appendChild(header);
+        currentMonth = monthStr;
+      }
+
       const div = document.createElement('div');
       div.className = `entry ${e.type === 'oil' ? 'entry-oil' : e.type === 'other' ? 'entry-other' : ''}`;
 
