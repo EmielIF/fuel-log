@@ -47,6 +47,12 @@
     margin-bottom: 12px;
     gap: 12px;
   }
+  
+  .header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
   .eyebrow {
     display: flex;
@@ -121,16 +127,6 @@
     transition: border-color 0.15s, color 0.15s;
   }
   .reload-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-  .sync-detail {
-    font-size: 11px;
-    font-family: 'DM Mono', monospace;
-    color: var(--danger);
-    margin-bottom: 24px;
-    word-break: break-word;
-    display: none;
-  }
-  .sync-detail.show { display: block; }
 
   .stats {
     display: grid;
@@ -314,6 +310,7 @@
   .fuel-badge.e98 { color: #f7933e; border: 1px solid #4a3520; }
   .fuel-badge.oil { color: var(--oil-accent); border: 1px solid #5a431a; background: rgba(229, 169, 60, 0.1); }
   .fuel-badge.other { color: var(--other-accent); border: 1px solid #2d3b61; background: rgba(107, 138, 240, 0.1); }
+  .fuel-badge.recurring { color: #f0f0f0; border: 1px solid #555; background: rgba(255,255,255,0.1); }
 
   .emptiness-badge { color: #a0c4ff; border-color: #1e3a5a; }
 
@@ -391,49 +388,10 @@
   .delete-btn:hover { opacity: 1; color: var(--danger); }
   .delete-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
-  .segment-connector {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: 0 12px;
-  }
-  .segment-line {
-    width: 1px;
-    height: 10px;
-    background: var(--border);
-  }
-  .segment-pill {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 5px 14px;
-    gap: 10px;
-  }
-  .segment-pill-partial { border-style: dashed; opacity: 0.7; }
-  .seg-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--text);
-    white-space: nowrap;
-  }
-  .seg-label {
-    font-size: 8px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .seg-divider {
-    width: 1px;
-    height: 24px;
-    background: var(--border);
-    flex-shrink: 0;
+  #recurringList {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-bottom: 24px;
   }
 
   @media (max-width: 500px) {
@@ -451,7 +409,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
         <span>Vehicle Log</span>
       </div>
-      <h1>Peugeot 207 CC</h1>
+      <div class="header-title-row">
+        <h1>Peugeot 207 CC</h1>
+        <button type="button" class="btn-subtle" id="openSettingsBtn" style="font-size:16px; padding:2px 6px;" title="Vaste lasten instellen">⚙️</button>
+      </div>
     </div>
     <button class="btn-primary" id="openFormBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
@@ -459,6 +420,39 @@
     </button>
   </div>
 
+  <!-- VASTE LASTEN PANEL -->
+  <div class="panel" id="settingsForm">
+    <div class="panel-header">
+      <h2>🗓️ Vaste Lasten / Abonnementen</h2>
+      <button type="button" class="btn-subtle" id="closeSettingsBtn">✕</button>
+    </div>
+    <p style="font-size: 12px; color: var(--muted); margin-top: -6px; margin-bottom: 16px; line-height: 1.4;">
+      Het systeem voegt deze kosten automatisch maandelijks toe in je logboek op basis van de startdatum. <strong>Als een prijs verandert, verwijder je de oude hier en maak je een nieuwe aan.</strong>
+    </p>
+    
+    <div id="recurringList"></div>
+    
+    <div style="border-top: 1px solid var(--border); padding-top: 16px;">
+      <h3 style="font-size: 12px; font-weight:600; color:var(--text); margin: 0 0 12px;">Nieuwe regel toevoegen</h3>
+      <div style="margin-bottom: 12px;">
+        <label>Omschrijving</label>
+        <input type="text" id="recTitle" placeholder="Bijv. Wegenbelasting" />
+      </div>
+      <div class="row">
+        <div>
+          <label>Startdatum</label>
+          <input type="date" id="recDate" />
+        </div>
+        <div>
+          <label>Bedrag /mnd (€)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="recPrice" placeholder="80.00" />
+        </div>
+      </div>
+      <button type="button" class="btn-submit" id="saveRecBtn" style="margin-top: 12px;">Regel opslaan</button>
+    </div>
+  </div>
+
+  <!-- LOGBOEK PANEL -->
   <form class="panel" id="entryForm">
     <div class="panel-header">
       <h2 id="formHeaderTitle">Nieuwe tankbeurt</h2>
@@ -552,7 +546,6 @@
     <span id="syncText">Connecting to your sheet…</span>
     <button type="button" id="reloadBtn" class="reload-btn">Reload data</button>
   </div>
-  <div class="sync-detail" id="syncDetail"></div>
 
   <div class="stats">
     <div class="stat-card">
@@ -600,13 +593,15 @@
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   let entries = [];
+  let recurringEntries = [];
   
   // UI State
-  let formMode = 'fuel'; // 'fuel' or 'other'
-  let secondaryType = 'oil'; // 'oil' or 'other'
+  let formMode = 'fuel'; 
+  let secondaryType = 'oil'; 
   let selectedFuel = 'E95';
 
   const entryForm = document.getElementById('entryForm');
+  const settingsForm = document.getElementById('settingsForm');
   const formHeaderTitle = document.getElementById('formHeaderTitle');
   const toggleModeBtn = document.getElementById('toggleModeBtn');
   const formTypeToggle = document.getElementById('formTypeToggle');
@@ -700,7 +695,21 @@
 
   document.getElementById('reloadBtn').addEventListener('click', fetchEntries);
 
+  // Settings Panel Toggles
+  document.getElementById('openSettingsBtn').addEventListener('click', () => {
+    entryForm.classList.remove('open');
+    settingsForm.classList.add('open');
+    document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
+    renderRecurring();
+  });
+
+  document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+    settingsForm.classList.remove('open');
+  });
+
+  // Entry Form Toggles
   document.getElementById('openFormBtn').addEventListener('click', () => {
+    settingsForm.classList.remove('open');
     entryForm.classList.add('open');
     entryForm.reset();
     document.getElementById('full').checked = true;
@@ -715,14 +724,47 @@
 
   document.getElementById('closeFormBtn').addEventListener('click', () => entryForm.classList.remove('open'));
 
-  // Form Submit
+  // Save Recurring Entry
+  document.getElementById('saveRecBtn').addEventListener('click', async () => {
+    const title = document.getElementById('recTitle').value.trim();
+    const date = document.getElementById('recDate').value;
+    const price = parseFloat(document.getElementById('recPrice').value);
+    
+    if (!title || !date || isNaN(price) || price <= 0) {
+      alert("Vul alle velden goed in.");
+      return;
+    }
+    
+    const btn = document.getElementById('saveRecBtn');
+    btn.disabled = true;
+    btn.textContent = 'Opslaan...';
+    
+    const entry = { id: uid(), title, date, price };
+    
+    try {
+      const res = await fetch(FUEL_API_URL, { method: 'POST', body: JSON.stringify({ action: 'add_recurring', entry }) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      
+      recurringEntries.push(entry);
+      document.getElementById('recTitle').value = '';
+      document.getElementById('recPrice').value = '';
+      renderRecurring();
+    } catch (err) {
+      alert('Fout: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Regel opslaan';
+    }
+  });
+
+  // Form Submit (Logs)
   entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const m = parseFloat(document.getElementById('mileage').value);
     const d = dateInput.value || new Date().toISOString().slice(0, 10);
     if (!m || m <= 0) return showError('Enter a valid odometer reading.');
 
-    // Determine actual type to save
     const actualType = formMode === 'fuel' ? 'fuel' : secondaryType;
 
     if (actualType === 'fuel') {
@@ -762,11 +804,13 @@
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       entries = data.entries;
+      recurringEntries = data.recurring || [];
       setSyncStatus('ok', 'Synced with Google Sheet');
     } catch (err) {
       setSyncStatus('err', 'Could not reach your sheet.', String(err));
     }
     render();
+    renderRecurring();
   }
 
   async function addEntry(entry) {
@@ -790,11 +834,40 @@
       const res = await fetch(FUEL_API_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', id }) });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
+      
+      // Update de lokale arrays direct zodat de app snappy aanvoelt
       entries = entries.filter((en) => en.id !== id);
+      recurringEntries = recurringEntries.filter((en) => en.id !== id);
+      
       render();
+      renderRecurring();
     } catch (err) {
       alert('Could not delete: ' + err.message);
     }
+  }
+
+  function renderRecurring() {
+    const list = document.getElementById('recurringList');
+    if (!recurringEntries || recurringEntries.length === 0) {
+      list.innerHTML = '<div style="font-size:12px; color:var(--muted); text-align:center; padding: 20px 0; border: 1px dashed var(--border); border-radius: 8px;">Je hebt nog geen vaste lasten ingesteld.</div>';
+      return;
+    }
+    
+    list.innerHTML = recurringEntries.map(e => `
+      <div class="entry">
+        <div style="flex:1; min-width:0;">
+          <div class="entry-top">
+            <span class="entry-mileage">${e.title}</span>
+            <span class="fuel-badge recurring">Actief</span>
+          </div>
+          <div class="entry-meta">Start: ${formatDateDisplay(e.date)}</div>
+        </div>
+        <div class="entry-right">
+          <span class="entry-price">€${formatNum(e.price, 2)}/mnd</span>
+          <button class="delete-btn" onclick="deleteEntry('${e.id}')" title="Stopzetten">✕</button>
+        </div>
+      </div>
+    `).join('');
   }
 
   function render() {
@@ -816,7 +889,6 @@
     }
     if (totalDist === 0 && fuelEntries.length >= 2) totalDist = fuelEntries[fuelEntries.length - 1].mileage - fuelEntries[0].mileage;
 
-    // TCO includes EVERYTHING (Fuel + Oil + Other)
     const totalSpent = entries.reduce((s, e) => s + (e.price || 0), 0);
 
     const oilEntries = entries.filter(e => e.type === 'oil').sort((a, b) => a.mileage - b.mileage);
@@ -827,7 +899,6 @@
       if (oilDist > 0) avgOilBurn = (oilLitersSum / oilDist) * 1000;
     }
 
-    // Update Stats UI
     document.getElementById('statConsumption').innerHTML = avgConsumption !== null ? `${formatNum(avgConsumption)}<span class="stat-unit">L/100km</span>` : `—<span class="stat-unit">L/100km</span>`;
     document.getElementById('statOilBurn').innerHTML = avgOilBurn !== null ? `${formatNum(avgOilBurn, 2)}<span class="stat-unit">L/kkm</span>` : `—<span class="stat-unit">L/kkm</span>`;
     document.getElementById('statSpent').textContent = `€${formatNum(totalSpent, 2)}`;
