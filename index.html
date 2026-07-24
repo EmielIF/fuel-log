@@ -133,7 +133,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
-    margin-bottom: 24px;
+    margin-bottom: 12px;
   }
 
   .stat-card {
@@ -157,8 +157,18 @@
   }
   .stat-value.glow { color: var(--accent); text-shadow: 0 0 18px rgba(247, 147, 62, 0.35); }
   .stat-value.oil-glow { color: var(--oil-accent); text-shadow: 0 0 18px rgba(229, 169, 60, 0.35); }
+  
+  .stat-value.warning { color: var(--accent); }
+  .stat-value.danger { color: var(--danger); }
 
   .stat-unit { font-size: 10px; color: var(--muted); margin-left: 2px; }
+
+  .status-bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
 
   .panel {
     background: var(--panel);
@@ -473,6 +483,7 @@
 
   @media (max-width: 500px) {
     .stats { grid-template-columns: 1fr 1fr; }
+    .status-bars { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
     .row.three-col { grid-template-columns: 1fr; }
   }
@@ -486,13 +497,40 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
         <span>Vehicle Log</span>
       </div>
-      <h1>Peugeot 207 CC</h1>
+      <div class="header-title-row">
+        <h1>Peugeot 207 CC</h1>
+        <!-- Settings Tandwiel -->
+        <button type="button" class="btn-subtle" id="openSettingsBtn" style="font-size:16px; padding:2px 6px;" title="Onderhoud & APK">⚙️</button>
+      </div>
     </div>
     <button class="btn-primary" id="openFormBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
       Add log entry
     </button>
   </div>
+
+  <!-- INSTELLINGEN PANEL (APK & Onderhoud) -->
+  <form class="panel" id="settingsForm">
+    <div class="panel-header">
+      <h2>⚙️ Voertuig Instellingen</h2>
+      <button type="button" class="btn-subtle" id="closeSettingsBtn">✕</button>
+    </div>
+    <p style="font-size: 11px; color: var(--muted); margin-bottom: 16px; margin-top: -4px;">
+      Vul hieronder de actuele vervaldatum van de APK in, en de kilometerstand waarop de auto weer toe is aan onderhoud.
+    </p>
+    <div class="row">
+      <div>
+        <label for="apkDate">APK Vervaldatum</label>
+        <input type="date" id="apkDate" />
+      </div>
+      <div>
+        <label for="maintKm">Volgende beurt (km)</label>
+        <input type="number" inputmode="decimal" id="maintKm" placeholder="195000" />
+      </div>
+    </div>
+    <div class="error" id="settingsError" style="display:none;"></div>
+    <button type="submit" class="btn-submit" id="saveSettingsBtn" style="margin-top: 12px;">Instellingen opslaan</button>
+  </form>
 
   <form class="panel" id="entryForm">
     <div class="panel-header">
@@ -630,6 +668,18 @@
     </div>
   </div>
 
+  <!-- STATUS BARS VOOR APK & ONDERHOUD -->
+  <div class="status-bars" id="statusBars" style="display:none;">
+    <div class="stat-card" id="apkCard">
+      <div class="stat-label">APK Vervaldatum</div>
+      <div class="stat-value mono" id="apkValue">—</div>
+    </div>
+    <div class="stat-card" id="maintCard">
+      <div class="stat-label">Onderhoud over</div>
+      <div class="stat-value mono" id="maintValue">—</div>
+    </div>
+  </div>
+
   <div>
     <div class="list-label" id="listLabel">Loading…</div>
     <div id="entriesContainer"></div>
@@ -658,6 +708,7 @@
 
   let entries = [];
   let recurringEntries = [];
+  let systemSettings = {};
   
   // UI State
   let formMode = 'fuel'; 
@@ -665,6 +716,7 @@
   let selectedFuel = 'E95';
 
   const entryForm = document.getElementById('entryForm');
+  const settingsForm = document.getElementById('settingsForm');
   const formHeaderTitle = document.getElementById('formHeaderTitle');
   const toggleModeBtn = document.getElementById('toggleModeBtn');
   const formTypeToggle = document.getElementById('formTypeToggle');
@@ -675,8 +727,10 @@
   const recurringFields = document.getElementById('recurringFields');
   
   const formError = document.getElementById('formError');
+  const settingsError = document.getElementById('settingsError');
   const dateInput = document.getElementById('date');
   const submitBtn = document.getElementById('submitBtn');
+  const saveSettingsBtn = document.getElementById('saveSettingsBtn');
   
   const litersInput = document.getElementById('liters');
   const pplInput = document.getElementById('ppl');
@@ -773,7 +827,50 @@
 
   document.getElementById('reloadBtn').addEventListener('click', fetchEntries);
 
+  // Settings Form
+  document.getElementById('openSettingsBtn').addEventListener('click', () => {
+    entryForm.classList.remove('open');
+    settingsForm.classList.add('open');
+    settingsError.style.display = 'none';
+    if (systemSettings.apk_date) document.getElementById('apkDate').value = systemSettings.apk_date;
+    if (systemSettings.maint_km) document.getElementById('maintKm').value = systemSettings.maint_km;
+  });
+
+  document.getElementById('closeSettingsBtn').addEventListener('click', () => settingsForm.classList.remove('open'));
+
+  settingsForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const apk_date = document.getElementById('apkDate').value;
+    const maint_km = document.getElementById('maintKm').value;
+    
+    saveSettingsBtn.disabled = true;
+    saveSettingsBtn.textContent = 'Opslaan...';
+    settingsError.style.display = 'none';
+
+    try {
+      const res = await fetch(FUEL_API_URL, { 
+        method: 'POST', 
+        body: JSON.stringify({ action: 'save_settings', settings: { apk_date, maint_km } }) 
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      
+      systemSettings.apk_date = apk_date;
+      systemSettings.maint_km = maint_km;
+      
+      settingsForm.classList.remove('open');
+      render();
+    } catch(err) {
+      settingsError.textContent = 'Fout bij opslaan: ' + err.message;
+      settingsError.style.display = 'block';
+    } finally {
+      saveSettingsBtn.disabled = false;
+      saveSettingsBtn.textContent = 'Instellingen opslaan';
+    }
+  });
+
   document.getElementById('openFormBtn').addEventListener('click', () => {
+    settingsForm.classList.remove('open');
     entryForm.classList.add('open');
     entryForm.reset();
     document.getElementById('full').checked = true;
@@ -843,6 +940,7 @@
       if (!data.ok) throw new Error(data.error);
       entries = data.entries;
       recurringEntries = data.recurring || [];
+      systemSettings = data.settings || {};
       setSyncStatus('ok', 'Synced with Google Sheet');
     } catch (err) {
       setSyncStatus('err', 'Could not reach je sheet.', String(err));
@@ -959,6 +1057,60 @@
     document.getElementById('statSpent').textContent = `€${formatNum(totalSpent, 2)}`;
     document.getElementById('statDistance').innerHTML = totalDist > 0 ? `${formatNum(totalDist, 0)}<span class="stat-unit">km</span>` : `—<span class="stat-unit">km</span>`;
 
+    // STATUS BARS VOOR APK EN ONDERHOUD
+    const statusBars = document.getElementById('statusBars');
+    if (systemSettings.apk_date || systemSettings.maint_km) {
+      statusBars.style.display = 'grid';
+      
+      if (systemSettings.apk_date) {
+        const apkDate = new Date(systemSettings.apk_date);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const diffDays = Math.ceil((apkDate - today) / (1000 * 60 * 60 * 24));
+        
+        const apkValueEl = document.getElementById('apkValue');
+        if (diffDays < 0) {
+          apkValueEl.textContent = 'Verlopen!';
+          apkValueEl.className = 'stat-value mono danger';
+        } else if (diffDays <= 30) {
+          apkValueEl.innerHTML = `${diffDays}<span class="stat-unit">dagen</span>`;
+          apkValueEl.className = 'stat-value mono warning';
+        } else {
+          apkValueEl.textContent = formatDateDisplay(systemSettings.apk_date);
+          apkValueEl.className = 'stat-value mono';
+        }
+      } else {
+        document.getElementById('apkValue').textContent = '—';
+        document.getElementById('apkValue').className = 'stat-value mono';
+      }
+
+      if (systemSettings.maint_km) {
+        const maintKm = Number(systemSettings.maint_km);
+        const maxMileage = Math.max(...entries.map(e => e.mileage), 0);
+        const left = maintKm - maxMileage;
+        
+        const maintValueEl = document.getElementById('maintValue');
+        if (maxMileage === 0) {
+           maintValueEl.innerHTML = `—<span class="stat-unit">km</span>`;
+           maintValueEl.className = 'stat-value mono';
+        } else if (left < 0) {
+           maintValueEl.textContent = 'Beurt nodig!';
+           maintValueEl.className = 'stat-value mono danger';
+        } else if (left <= 1000) {
+           maintValueEl.innerHTML = `${formatNum(left, 0)}<span class="stat-unit">km</span>`;
+           maintValueEl.className = 'stat-value mono warning';
+        } else {
+           maintValueEl.innerHTML = `${formatNum(left, 0)}<span class="stat-unit">km</span>`;
+           maintValueEl.className = 'stat-value mono';
+        }
+      } else {
+        document.getElementById('maintValue').innerHTML = `—<span class="stat-unit">km</span>`;
+        document.getElementById('maintValue').className = 'stat-value mono';
+      }
+    } else {
+      statusBars.style.display = 'none';
+    }
+
     const container = document.getElementById('entriesContainer');
     container.innerHTML = '';
     document.getElementById('listLabel').textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, per maand`;
@@ -976,7 +1128,6 @@
     const years = [];
     let currentYear = null;
 
-    // Eerst de data strak groeperen per Jaar en daarna per Maand
     sortedDescByDate.forEach(e => {
       const d = new Date(e.date);
       const yearStr = d.getFullYear().toString();
@@ -998,7 +1149,6 @@
       currentYear.totalCost += (e.price || 0);
     });
 
-    // Bouw de inklapbare (accordion) lijst op
     years.forEach((yearGroup, yIndex) => {
       const yearDetails = document.createElement('details');
       yearDetails.className = 'year-group';
