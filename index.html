@@ -269,7 +269,7 @@
     margin-bottom: 6px;
   }
 
-  input[type="text"], input[type="number"], input[type="date"] {
+  input[type="text"], input[type="number"], input[type="date"], select {
     width: 100%;
     background: var(--bg);
     border: 1px solid var(--border);
@@ -280,8 +280,8 @@
     font-size: 14px;
     color-scheme: dark;
   }
-  input[type="text"] { font-family: 'Space Grotesk', sans-serif; }
-  input:focus { outline: none; border-color: var(--accent); }
+  input[type="text"], select { font-family: 'Space Grotesk', sans-serif; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
 
   .checkbox-row {
     display: flex;
@@ -327,7 +327,7 @@
   .fuel-badge.e98 { color: #f7933e; border: 1px solid #4a3520; }
   .fuel-badge.oil { color: var(--oil-accent); border: 1px solid #5a431a; background: rgba(229, 169, 60, 0.1); }
   .fuel-badge.other { color: var(--other-accent); border: 1px solid #2d3b61; background: rgba(107, 138, 240, 0.1); }
-  .fuel-badge.recurring { color: #f0f0f0; border: 1px solid #555; background: rgba(255,255,255,0.1); }
+  .fuel-badge.recurring { color: var(--rec-accent); border: 1px solid #1e4620; background: rgba(74, 222, 128, 0.1); }
 
   .emptiness-badge { color: #a0c4ff; border-color: #1e3a5a; }
 
@@ -442,6 +442,7 @@
   }
   .entry.entry-oil { border-left: 3px solid var(--oil-accent); }
   .entry.entry-other { border-left: 3px solid var(--other-accent); }
+  .entry.entry-recurring { border-left: 3px solid var(--rec-accent); }
 
   .entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .entry-mileage { font-family: 'DM Mono', monospace; font-size: 14px; }
@@ -461,6 +462,7 @@
   .entry-price { font-family: 'DM Mono', monospace; font-size: 14px; color: var(--accent); }
   .entry-oil .entry-price { color: var(--oil-accent); }
   .entry-other .entry-price { color: var(--other-accent); }
+  .entry-recurring .entry-price { color: var(--rec-accent); }
 
   .delete-btn {
     background: none;
@@ -499,7 +501,6 @@
       </div>
       <div class="header-title-row">
         <h1>Peugeot 207 CC</h1>
-        <!-- Settings Tandwiel -->
         <button type="button" class="btn-subtle" id="openSettingsBtn" style="font-size:16px; padding:2px 6px;" title="Onderhoud & APK">⚙️</button>
       </div>
     </div>
@@ -509,7 +510,6 @@
     </button>
   </div>
 
-  <!-- INSTELLINGEN PANEL (APK & Onderhoud) -->
   <form class="panel" id="settingsForm">
     <div class="panel-header">
       <h2>⚙️ Voertuig Instellingen</h2>
@@ -604,8 +604,16 @@
 
     <div id="otherFields" style="display: none;">
       <div style="margin-bottom: 12px;">
-        <label for="otherTitle">Omschrijving (bijv. Aanschaf, APK, Banden)</label>
-        <input type="text" id="otherTitle" placeholder="Aanschaf Peugeot 207 CC" />
+        <label for="otherCategory">Categorie</label>
+        <select id="otherCategory">
+          <option value="Onderhoud, technisch">Onderhoud, technisch</option>
+          <option value="Onderhoud, cosmetisch">Onderhoud, cosmetisch</option>
+          <option value="Overig" selected>Overig</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <label for="otherTitle">Omschrijving (bijv. Aanschaf, APK, Wassen)</label>
+        <input type="text" id="otherTitle" placeholder="Bijv. Nieuwe banden" />
       </div>
       <div style="width: 50%; margin-bottom: 16px;">
         <label for="otherPrice">Totale kosten (€)</label>
@@ -710,7 +718,6 @@
   let recurringEntries = [];
   let systemSettings = {};
   
-  // UI State
   let formMode = 'fuel'; 
   let secondaryType = 'oil'; 
   let selectedFuel = 'E95';
@@ -827,7 +834,6 @@
 
   document.getElementById('reloadBtn').addEventListener('click', fetchEntries);
 
-  // Settings Form
   document.getElementById('openSettingsBtn').addEventListener('click', () => {
     entryForm.classList.remove('open');
     settingsForm.classList.add('open');
@@ -917,10 +923,11 @@
       addEntry({ id: uid(), type: 'oil', date: d, mileage: m, liters: l, price: p });
     }
     else if (actualType === 'other') {
+      let cat = document.getElementById('otherCategory').value;
       let t = document.getElementById('otherTitle').value.trim();
       let p = parseFloat(document.getElementById('otherPrice').value) || 0;
       if (!t) return showError('Enter a description (omschrijving).');
-      addEntry({ id: uid(), type: 'other', date: d, mileage: m, title: t, price: p });
+      addEntry({ id: uid(), type: 'other', date: d, mileage: m, category: cat, title: t, price: p });
     }
   });
 
@@ -1057,7 +1064,6 @@
     document.getElementById('statSpent').textContent = `€${formatNum(totalSpent, 2)}`;
     document.getElementById('statDistance').innerHTML = totalDist > 0 ? `${formatNum(totalDist, 0)}<span class="stat-unit">km</span>` : `—<span class="stat-unit">km</span>`;
 
-    // STATUS BARS VOOR APK EN ONDERHOUD
     const statusBars = document.getElementById('statusBars');
     if (systemSettings.apk_date || systemSettings.maint_km) {
       statusBars.style.display = 'grid';
@@ -1197,9 +1203,10 @@
               </div>`;
           } 
           else if (e.type === 'other') {
+            const catLabel = e.category || 'Overig';
             div.innerHTML = `
               <div style="flex:1; min-width:0;">
-                <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge other">🛠️ Overig</span></div>
+                <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge other">${catLabel}</span></div>
                 <div class="entry-meta">${formatDateDisplay(e.date)} · ${e.title}</div>
               </div>
               <div class="entry-right">
