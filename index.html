@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#15171c" />
-<title>Fuel Log — Peugeot 207 CC</title>
+<title>Fuel & Oil Log — Peugeot 207 CC</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⛽</text></svg>" />
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
@@ -17,6 +17,7 @@
     --muted: #7a7e8a;
     --accent: #f7933e;
     --accent-hover: #ffa55c;
+    --oil-accent: #e5a93c;
     --danger: #ff6b6b;
   }
 
@@ -152,8 +153,8 @@
 
   .stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
     margin-bottom: 24px;
   }
 
@@ -212,23 +213,25 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 16px;
-    padding: 16px 14px;
+    padding: 14px 12px;
   }
 
   .stat-label {
-    font-size: 10px;
-    letter-spacing: 0.15em;
+    font-size: 9px;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--muted);
     margin-bottom: 8px;
+    white-space: nowrap;
   }
 
   .stat-value {
-    font-size: 20px;
+    font-size: 17px;
   }
   .stat-value.glow { color: var(--accent); text-shadow: 0 0 18px rgba(247, 147, 62, 0.35); }
+  .stat-value.oil-glow { color: var(--oil-accent); text-shadow: 0 0 18px rgba(229, 169, 60, 0.35); }
 
-  .stat-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .stat-unit { font-size: 10px; color: var(--muted); margin-left: 2px; }
 
   .panel {
     background: var(--panel);
@@ -245,6 +248,33 @@
     font-size: 14px;
     font-weight: 600;
     margin: 0 0 16px;
+  }
+
+  .form-type-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .form-type-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .form-type-btn.active[data-type="fuel"] {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(247, 147, 62, 0.08);
+  }
+  .form-type-btn.active[data-type="oil"] {
+    border-color: var(--oil-accent);
+    color: var(--oil-accent);
+    background: rgba(229, 169, 60, 0.08);
   }
 
   .close-btn {
@@ -338,6 +368,7 @@
   }
   .fuel-badge.e95 { color: #7dd3a0; border: 1px solid #2a4a36; }
   .fuel-badge.e98 { color: #f7933e; border: 1px solid #4a3520; }
+  .fuel-badge.oil { color: var(--oil-accent); border: 1px solid #5a431a; background: rgba(229, 169, 60, 0.1); }
   .fuel-badge.unknown { color: var(--muted); border: 1px solid var(--border); }
 
   .emptiness-badge {
@@ -396,6 +427,9 @@
     justify-content: space-between;
     margin-bottom: 8px;
     gap: 12px;
+  }
+  .entry.entry-oil {
+    border-left: 3px solid var(--oil-accent);
   }
 
   .entry-top {
@@ -482,6 +516,9 @@
     font-size: 14px;
     color: var(--accent);
   }
+  .entry-oil .entry-price {
+    color: var(--oil-accent);
+  }
 
   .delete-btn {
     background: none;
@@ -544,8 +581,8 @@
   }
   .footer-link:hover { color: var(--muted); }
 
-  @media (max-width: 420px) {
-    .stats { grid-template-columns: 1fr; }
+  @media (max-width: 500px) {
+    .stats { grid-template-columns: 1fr 1fr; }
     .row { grid-template-columns: 1fr; }
     .row.three-col { grid-template-columns: 1fr; }
     .compare-grid { grid-template-columns: 1fr; }
@@ -558,13 +595,13 @@
     <div>
       <div class="eyebrow">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 22h12M4 9h10M4 9V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17M9 22V12M14 5l4 3v8a2 2 0 0 0 4 0V9l-3-3"/></svg>
-        <span>Fuel Log</span>
+        <span>Fuel & Oil Log</span>
       </div>
       <h1>Peugeot 207 CC</h1>
     </div>
     <button class="btn-primary" id="openFormBtn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-      Add fill-up
+      Add log entry
     </button>
   </div>
 
@@ -572,7 +609,12 @@
     <button type="button" class="close-btn" id="closeFormBtn">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
     </button>
-    <h2>New fill-up</h2>
+    <h2>New entry</h2>
+
+    <div class="form-type-toggle" id="formTypeToggle">
+      <button type="button" class="form-type-btn active" data-type="fuel">⛽ Fuel fill-up</button>
+      <button type="button" class="form-type-btn" data-type="oil">🛢️ Oil top-up</button>
+    </div>
 
     <div class="row">
       <div>
@@ -585,34 +627,51 @@
       </div>
     </div>
 
-    <div class="row three-col">
-      <div>
-        <label for="liters">Liters</label>
-        <input type="number" inputmode="decimal" step="0.01" id="liters" placeholder="42.5" />
+    <!-- FUEL FIELDS -->
+    <div id="fuelFields">
+      <div class="row three-col">
+        <div>
+          <label for="liters">Liters</label>
+          <input type="number" inputmode="decimal" step="0.01" id="liters" placeholder="42.5" />
+        </div>
+        <div>
+          <label for="ppl">€ / liter</label>
+          <input type="number" inputmode="decimal" step="0.001" id="ppl" placeholder="1.950" />
+        </div>
+        <div>
+          <label for="price">Total (€)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="price" placeholder="78.30" />
+        </div>
       </div>
-      <div>
-        <label for="ppl">€ / liter</label>
-        <input type="number" inputmode="decimal" step="0.001" id="ppl" placeholder="1.950" />
+      <div class="autocalc-hint" id="autocalcHint"></div>
+
+      <div style="margin-bottom: 16px;">
+        <label>Fuel type</label>
+        <div class="fuel-toggle" id="fuelToggle">
+          <button type="button" class="fuel-option active" data-fuel="E95">Euro95</button>
+          <button type="button" class="fuel-option" data-fuel="E98">Euro98</button>
+        </div>
       </div>
-      <div>
-        <label for="price">Total (€)</label>
-        <input type="number" inputmode="decimal" step="0.01" id="price" placeholder="78.30" />
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="full" checked />
+        <span>Filled the tank completely</span>
+      </label>
+    </div>
+
+    <!-- OIL FIELDS -->
+    <div id="oilFields" style="display: none;">
+      <div class="row">
+        <div>
+          <label for="oilLiters">Liters added</label>
+          <input type="number" inputmode="decimal" step="0.1" id="oilLiters" placeholder="0.5" />
+        </div>
+        <div>
+          <label for="oilPrice">Total cost (€ optional)</label>
+          <input type="number" inputmode="decimal" step="0.01" id="oilPrice" placeholder="12.50" />
+        </div>
       </div>
     </div>
-    <div class="autocalc-hint" id="autocalcHint"></div>
-
-    <div style="margin-bottom: 16px;">
-      <label>Fuel type</label>
-      <div class="fuel-toggle" id="fuelToggle">
-        <button type="button" class="fuel-option active" data-fuel="E95">Euro95</button>
-        <button type="button" class="fuel-option" data-fuel="E98">Euro98</button>
-      </div>
-    </div>
-
-    <label class="checkbox-row">
-      <input type="checkbox" id="full" checked />
-      <span>Filled the tank completely</span>
-    </label>
 
     <div class="error" id="formError" style="display:none;"></div>
 
@@ -636,6 +695,10 @@
     <div class="stat-card">
       <div class="stat-label">Avg consumption</div>
       <div class="stat-value glow mono" id="statConsumption">—<span class="stat-unit">L/100km</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg oil burn</div>
+      <div class="stat-value oil-glow mono" id="statOilBurn">—<span class="stat-unit">L/kkm</span></div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Total spent</div>
@@ -666,7 +729,6 @@
 
 <script>
   // ──────────────────────────────────────────────────────────────
-  // PASTE YOUR APPS SCRIPT WEB APP URL HERE, between the quotes:
   const FUEL_API_URL = "https://script.google.com/macros/s/AKfycbxIwSLINCii0ktt7adPDeT-Xno5NivpptTmZWWbTLcoy6H9JHAD2q3dnNPsZaU55R7Pmw/exec";
   // ──────────────────────────────────────────────────────────────
 
@@ -676,9 +738,6 @@
   }
 
   function formatDateDisplay(isoDate) {
-    // Accepts "YYYY-MM-DD" (from the date input or the sheet) and
-    // returns "DD-MM-YYYY" for display. Falls back to the raw value
-    // if it doesn't match the expected shape.
     if (!isoDate) return '';
     const m = String(isoDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!m) return String(isoDate);
@@ -693,6 +752,7 @@
   let entries = [];
   let isOnline = false;
   let selectedFuel = 'E95';
+  let activeEntryType = 'fuel';
 
   const openFormBtn = document.getElementById('openFormBtn');
   const closeFormBtn = document.getElementById('closeFormBtn');
@@ -710,11 +770,12 @@
   const pplInput = document.getElementById('ppl');
   const priceInput = document.getElementById('price');
   const autocalcHint = document.getElementById('autocalcHint');
+  const formTypeToggle = document.getElementById('formTypeToggle');
+  const fuelFields = document.getElementById('fuelFields');
+  const oilFields = document.getElementById('oilFields');
+  const oilLitersInput = document.getElementById('oilLiters');
+  const oilPriceInput = document.getElementById('oilPrice');
 
-  // Auto-calculate the third field whenever two of the three are filled.
-  // Rounds to avoid floating point noise (e.g. 0.0000000001 remainder).
-  // Only writes to the field that is currently empty or was auto-filled,
-  // so manually typed values are never silently overwritten.
   let autoFilledField = null;
   function runAutoCalc() {
     const l = parseFloat(litersInput.value);
@@ -724,9 +785,6 @@
     const pOk = !isNaN(p) && p > 0;
     const tOk = !isNaN(t) && t > 0;
 
-    // Recalculate if the target field is empty OR was previously
-    // auto-filled (so corrections to field 1 or 2 update field 3
-    // rather than leaving a stale value from the first calculation).
     if (lOk && pOk && (!tOk || autoFilledField === 'price')) {
       const calc = Math.round(l * p * 100) / 100;
       priceInput.value = calc.toFixed(2);
@@ -747,8 +805,6 @@
     }
   }
 
-  // Als de gebruiker een auto-ingevuld veld zelf aanpast, behandel het
-  // dan als handmatig en overschrijf het niet meer bij herberekening.
   function onManualInput(field) {
     if (autoFilledField === field) autoFilledField = null;
     runAutoCalc();
@@ -759,6 +815,20 @@
   priceInput.addEventListener('change', () => onManualInput('price'));
 
   reloadBtn.addEventListener('click', () => fetchEntries());
+
+  formTypeToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.form-type-btn');
+    if (!btn) return;
+    activeEntryType = btn.dataset.type;
+    formTypeToggle.querySelectorAll('.form-type-btn').forEach(b => b.classList.toggle('active', b === btn));
+    if (activeEntryType === 'fuel') {
+      fuelFields.style.display = 'block';
+      oilFields.style.display = 'none';
+    } else {
+      fuelFields.style.display = 'none';
+      oilFields.style.display = 'block';
+    }
+  });
 
   fuelToggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.fuel-option');
@@ -856,12 +926,14 @@
     autocalcHint.textContent = '';
     autoFilledField = null;
     selectedFuel = 'E95';
+    activeEntryType = 'fuel';
+    fuelFields.style.display = 'block';
+    oilFields.style.display = 'none';
+    formTypeToggle.querySelectorAll('.form-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'fuel'));
     fuelToggle.querySelectorAll('.fuel-option').forEach((b) => {
       b.classList.toggle('active', b.dataset.fuel === 'E95');
     });
-    // Set odometer placeholder to the highest logged mileage as a
-    // sanity-check anchor — lets you quickly spot a typo like 17800
-    // when your car is at 178000.
+
     if (entries.length > 0) {
       const lastMileage = Math.max(...entries.map((e) => e.mileage));
       document.getElementById('mileage').placeholder = formatNum(lastMileage, 0) + ' (last)';
@@ -880,26 +952,35 @@
   entryForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const m = parseFloat(document.getElementById('mileage').value);
-    let l = parseFloat(litersInput.value);
-    let p = parseFloat(priceInput.value);
-    const ppl = parseFloat(pplInput.value);
     const d = dateInput.value || new Date().toISOString().slice(0, 10);
-    const full = document.getElementById('full').checked;
-
-    // Resolve the missing field one final time on submit, in case the
-    // auto-calc hasn't fired yet (e.g. user tabbed straight to submit).
-    if (!isNaN(l) && l > 0 && !isNaN(ppl) && ppl > 0 && (isNaN(p) || p <= 0)) {
-      p = Math.round(l * ppl * 100) / 100;
-    } else if (!isNaN(l) && l > 0 && !isNaN(p) && p > 0 && (isNaN(ppl) || ppl <= 0)) {
-      // ppl not required for saving, just liters + total is enough
-    }
 
     if (!m || m <= 0) return showError('Enter a valid odometer reading.');
-    if (!l || l <= 0) return showError('Enter a valid amount of fuel (liters).');
-    if (!p || p <= 0) return showError('Enter a valid total price or price per liter.');
-    if (entries.some((en) => en.mileage === m)) return showError('An entry already exists at this mileage.');
+    if (entries.some((en) => en.mileage === m && (en.type || 'fuel') === activeEntryType)) {
+      return showError('An entry of this type already exists at this mileage.');
+    }
 
-    addEntry({ id: uid(), date: d, mileage: m, liters: l, price: p, full, fuelType: selectedFuel });
+    if (activeEntryType === 'fuel') {
+      let l = parseFloat(litersInput.value);
+      let p = parseFloat(priceInput.value);
+      const ppl = parseFloat(pplInput.value);
+      const full = document.getElementById('full').checked;
+
+      if (!isNaN(l) && l > 0 && !isNaN(ppl) && ppl > 0 && (isNaN(p) || p <= 0)) {
+        p = Math.round(l * ppl * 100) / 100;
+      }
+
+      if (!l || l <= 0) return showError('Enter a valid amount of fuel (liters).');
+      if (!p || p <= 0) return showError('Enter a valid total price or price per liter.');
+
+      addEntry({ id: uid(), type: 'fuel', date: d, mileage: m, liters: l, price: p, full, fuelType: selectedFuel });
+    } else {
+      let l = parseFloat(oilLitersInput.value);
+      let p = parseFloat(oilPriceInput.value) || 0;
+
+      if (!l || l <= 0) return showError('Enter a valid amount of oil (liters).');
+
+      addEntry({ id: uid(), type: 'oil', date: d, mileage: m, liters: l, price: p });
+    }
   });
 
   function showError(msg) {
@@ -908,39 +989,51 @@
   }
 
   function computeStats() {
-    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fuelEntries = entries.filter(e => (e.type || 'fuel') === 'fuel');
+    const sorted = [...fuelEntries].sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = sorted.filter((e) => e.full);
-    if (fullFillUps.length < 2) return null;
 
+    let avgConsumption = null;
     let totalDist = 0;
-    let totalLiters = 0;
-    for (let i = 1; i < fullFillUps.length; i++) {
-      const prev = fullFillUps[i - 1];
-      const cur = fullFillUps[i];
-      const dist = cur.mileage - prev.mileage;
-      if (dist <= 0) continue;
-      totalDist += dist;
-      // Sum ALL liters between prev (exclusive) and cur (inclusive):
-      // partial fill-ups between two full tanks contribute real fuel that
-      // was burned over this stretch, so they must be counted. Only
-      // adding cur.liters would make consumption look artificially low.
-      const litersInStretch = sorted
-        .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
-        .reduce((s, e) => s + e.liters, 0);
-      totalLiters += litersInStretch;
+
+    if (fullFillUps.length >= 2) {
+      let totalLiters = 0;
+      for (let i = 1; i < fullFillUps.length; i++) {
+        const prev = fullFillUps[i - 1];
+        const cur = fullFillUps[i];
+        const dist = cur.mileage - prev.mileage;
+        if (dist <= 0) continue;
+        totalDist += dist;
+        const litersInStretch = sorted
+          .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
+          .reduce((s, e) => s + e.liters, 0);
+        totalLiters += litersInStretch;
+      }
+      avgConsumption = totalDist > 0 ? (totalLiters / totalDist) * 100 : null;
     }
-    const avgConsumption = totalDist > 0 ? (totalLiters / totalDist) * 100 : null;
-    const totalSpent = sorted.reduce((s, e) => s + e.price, 0);
-    return { avgConsumption, totalSpent, totalDist };
+
+    if (totalDist === 0 && sorted.length >= 2) {
+      totalDist = sorted[sorted.length - 1].mileage - sorted[0].mileage;
+    }
+
+    const totalSpent = entries.reduce((s, e) => s + (e.price || 0), 0);
+
+    // Olieverbruik berekening (Liters / 1000 km)
+    const oilEntries = entries.filter(e => e.type === 'oil').sort((a, b) => a.mileage - b.mileage);
+    let avgOilBurn = null;
+
+    if (oilEntries.length >= 2) {
+      const oilDist = oilEntries[oilEntries.length - 1].mileage - oilEntries[0].mileage;
+      // Tellen alle liters bij vanaf de tweede bijvulling
+      const oilLitersSum = oilEntries.slice(1).reduce((sum, e) => sum + e.liters, 0);
+      if (oilDist > 0) {
+        avgOilBurn = (oilLitersSum / oilDist) * 1000;
+      }
+    }
+
+    return { avgConsumption, totalSpent, totalDist, avgOilBurn };
   }
 
-  // Picks the most relatable distance comparison for the given km total.
-  // Each entry is a real reference distance with a label. The function
-  // finds the largest reference that's still <= the total (so the
-  // multiplier reads as "1.2x" rather than "0.2x"), falling back to the
-  // smallest reference if the total hasn't reached it yet. This keeps
-  // the comparison anchored to something real-feeling at every scale,
-  // rather than a tiny, meaningless fraction of a huge distance.
   const DISTANCE_REFERENCES = [
     { km: 12, label: 'Scherpenzeel to Amersfoort' },
     { km: 35, label: 'Scherpenzeel to Utrecht' },
@@ -984,22 +1077,13 @@
     return `You've driven ${kmText} so far, about ${formatNum(t, 1)}× ${chosen.label}.`;
   }
 
-  // Liters of car fuel expressed as the distance a Boeing 737 could fly
-  // burning the same amount, using an approximate cruise burn rate of
-  // ~3.68 L per km (around 3125 L/hour at a cruise speed of ~850 km/h).
-  // This is a rough average for illustration, not a precise model.
   function fuelFunFact(totalLiters) {
     const litersText = `<strong>${formatNum(totalLiters, 0)}L</strong>`;
-
-    // Pick a random aircraft comparison each page load. The 737 uses a
-    // distance metric (liters per km of cruise flight). The trainers use
-    // an hours metric (liters per hour at cruise) since that maps better
-    // to how training flights are thought about.
     const AIRCRAFT = [
       {
         name: 'Boeing 737',
         type: 'distance',
-        lPerKm: 3.68, // ~3125 L/h at ~850 km/h cruise
+        lPerKm: 3.68,
         unit: (km) => {
           if (km < 1) return `${Math.round(km * 1000)}m, barely off the runway`;
           if (km < 100) return `${formatNum(km, 1)}km`;
@@ -1010,7 +1094,7 @@
       {
         name: 'Diamond DA40',
         type: 'time',
-        lPerHour: 31, // cruise burn at ~75% power
+        lPerHour: 31,
         unit: (h) => {
           if (h < 1) return `${Math.round(h * 60)} minutes`;
           return `${formatNum(h, 1)} hours`;
@@ -1020,7 +1104,7 @@
       {
         name: 'Cessna 172',
         type: 'time',
-        lPerHour: 36, // cruise burn at ~75% power
+        lPerHour: 36,
         unit: (h) => {
           if (h < 1) return `${Math.round(h * 60)} minutes`;
           return `${formatNum(h, 1)} hours`;
@@ -1039,9 +1123,6 @@
     }
   }
 
-  // CO2 emitted by burning the total logged liters of petrol. Uses the
-  // commonly cited figure of about 2.31 kg CO2 per liter of gasoline
-  // burned (tailpipe emissions only, not production/refining footprint).
   function co2FunFact(totalLiters) {
     const KG_CO2_PER_LITER = 2.31;
     const kg = totalLiters * KG_CO2_PER_LITER;
@@ -1053,12 +1134,9 @@
     return `Burning the ${litersText} of fuel you've used so far released about <strong>${formatNum(tonnes, 2)} tonnes</strong> of CO2.`;
   }
 
-  // Average distance covered per full tank, using the same full-fill-up
-  // pairing logic as the consumption stat. Tells you roughly how far a
-  // tank typically takes you, which is also a rough "when's my next
-  // stop" indicator.
   function tankLifeFunFact() {
-    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fuelEntries = entries.filter(e => (e.type || 'fuel') === 'fuel');
+    const sorted = [...fuelEntries].sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = sorted.filter((e) => e.full);
     if (fullFillUps.length < 2) return null;
     let totalDist = 0;
@@ -1074,8 +1152,6 @@
     return `On average, a full tank takes you about <strong>${formatNum(avg, 0)}km</strong> before the next fill-up.`;
   }
 
-  // Days since the most recent logged entry, as a quiet, factual nudge
-  // rather than a celebratory "fun fact" tone.
   function daysSinceFunFact() {
     const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
     const last = sorted[sorted.length - 1];
@@ -1088,12 +1164,11 @@
     lastDate.setHours(0, 0, 0, 0);
     const days = Math.round((today - lastDate) / (1000 * 60 * 60 * 24));
     if (days < 0) return null;
-    if (days === 0) return `Last fill-up logged today.`;
-    if (days === 1) return `It's been <strong>1 day</strong> since your last logged fill-up.`;
-    return `It's been <strong>${days} days</strong> since your last logged fill-up.`;
+    if (days === 0) return `Last log entry recorded today.`;
+    if (days === 1) return `It's been <strong>1 day</strong> since your last logged entry.`;
+    return `It's been <strong>${days} days</strong> since your last logged entry.`;
   }
 
-  // Picks n random items from an array without repeats.
   function pickRandom(arr, n) {
     const copy = [...arr];
     const picked = [];
@@ -1104,15 +1179,12 @@
     return picked;
   }
 
-  // Builds the pool of currently-computable facts (some need more data
-  // than others, e.g. tank life needs 2+ full fill-ups) and returns a
-  // random selection of up to 2, each as { icon, text }. Re-rolled on
-  // every page load, so reloading shows a different pair over time.
   function computeFunFacts() {
     const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
     if (sorted.length < 2) return null;
     const totalDist = sorted[sorted.length - 1].mileage - sorted[0].mileage;
-    const totalLiters = sorted.reduce((s, e) => s + e.liters, 0);
+    const fuelEntries = entries.filter(e => (e.type || 'fuel') === 'fuel');
+    const totalLiters = fuelEntries.reduce((s, e) => s + e.liters, 0);
     if (totalDist <= 0) return null;
 
     const ICONS = {
@@ -1125,8 +1197,10 @@
 
     const pool = [];
     pool.push({ icon: ICONS.distance, text: distanceFunFact(totalDist) });
-    pool.push({ icon: ICONS.fuel, text: fuelFunFact(totalLiters) });
-    pool.push({ icon: ICONS.co2, text: co2FunFact(totalLiters) });
+    if (totalLiters > 0) {
+      pool.push({ icon: ICONS.fuel, text: fuelFunFact(totalLiters) });
+      pool.push({ icon: ICONS.co2, text: co2FunFact(totalLiters) });
+    }
 
     const tankText = tankLifeFunFact();
     if (tankText) pool.push({ icon: ICONS.tank, text: tankText });
@@ -1138,18 +1212,12 @@
   }
 
   function computeFuelComparison() {
-    const sorted = [...entries].sort((a, b) => a.mileage - b.mileage);
+    const fuelEntries = entries.filter(e => (e.type || 'fuel') === 'fuel');
+    const sorted = [...fuelEntries].sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = sorted.filter((e) => e.full);
 
     const byType = { E95: { dist: 0, liters: 0, spent: 0, count: 0 }, E98: { dist: 0, liters: 0, spent: 0, count: 0 } };
 
-    // Consumption: a stretch between two consecutive full fill-ups burns
-    // whatever fuel was put in at the START of that stretch (prev), since
-    // that's what was sitting in the tank while you drove it. The fuel
-    // TYPE is attributed to prev.fuelType. The LITERS count must include
-    // ALL fill-ups in the stretch (full and partial), not just cur.liters,
-    // because partial fill-ups between two full tanks are real fuel burned
-    // and ignoring them would make consumption look artificially low.
     for (let i = 1; i < fullFillUps.length; i++) {
       const prev = fullFillUps[i - 1];
       const cur = fullFillUps[i];
@@ -1164,9 +1232,7 @@
       byType[type].liters += litersInStretch;
     }
 
-    // Price per liter: every entry of that type counts, regardless of
-    // whether it was a full or partial fill-up.
-    entries.forEach((e) => {
+    fuelEntries.forEach((e) => {
       if (e.fuelType !== 'E95' && e.fuelType !== 'E98') return;
       byType[e.fuelType].spent += e.price;
       byType[e.fuelType].count += e.liters;
@@ -1189,13 +1255,15 @@
 
   function render() {
     const stats = computeStats();
-    const totalSpentAll = entries.reduce((s, e) => s + e.price, 0);
 
-    document.getElementById('statConsumption').innerHTML = stats
+    document.getElementById('statConsumption').innerHTML = stats.avgConsumption !== null
       ? `${formatNum(stats.avgConsumption)}<span class="stat-unit">L/100km</span>`
       : `—<span class="stat-unit">L/100km</span>`;
-    document.getElementById('statSpent').textContent = `€${formatNum(totalSpentAll, 2)}`;
-    document.getElementById('statDistance').innerHTML = stats
+    document.getElementById('statOilBurn').innerHTML = stats.avgOilBurn !== null
+      ? `${formatNum(stats.avgOilBurn, 2)}<span class="stat-unit">L/kkm</span>`
+      : `—<span class="stat-unit">L/kkm</span>`;
+    document.getElementById('statSpent').textContent = `€${formatNum(stats.totalSpent, 2)}`;
+    document.getElementById('statDistance').innerHTML = stats.totalDist > 0
       ? `${formatNum(stats.totalDist, 0)}<span class="stat-unit">km</span>`
       : `—<span class="stat-unit">km</span>`;
 
@@ -1278,24 +1346,20 @@
 
     listLabel.textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, latest first`;
 
-    // Pre-compute segment data keyed on the HIGHER-mileage (earlier in
-    // time) full fill-up's id. When rendering descending, after we draw
-    // that entry we immediately insert the connector below it, so it
-    // sits visually between that entry and the next (lower-mileage) one.
-    const sortedAsc = [...entries].sort((a, b) => a.mileage - b.mileage);
-    const fullFillUps = sortedAsc.filter((e) => e.full);
+    const fuelEntries = entries.filter(e => (e.type || 'fuel') === 'fuel');
+    const sortedAscFuel = [...fuelEntries].sort((a, b) => a.mileage - b.mileage);
+    const fullFillUps = sortedAscFuel.filter((e) => e.full);
     const segmentAfter = {};
 
-    // Full-tank segments: reliable consumption + cost data.
     for (let i = 1; i < fullFillUps.length; i++) {
       const prev = fullFillUps[i - 1];
       const cur = fullFillUps[i];
       const dist = cur.mileage - prev.mileage;
       if (dist <= 0) continue;
-      const litersInStretch = sortedAsc
+      const litersInStretch = sortedAscFuel
         .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
         .reduce((s, e) => s + e.liters, 0);
-      const totalCostInStretch = sortedAsc
+      const totalCostInStretch = sortedAscFuel
         .filter((e) => e.mileage > prev.mileage && e.mileage <= cur.mileage)
         .reduce((s, e) => s + e.price, 0);
       const consumption = (litersInStretch / dist) * 100;
@@ -1303,12 +1367,9 @@
       segmentAfter[cur.id] = { dist, consumption, costPerKm, reliable: true };
     }
 
-    // All consecutive fill-ups: distance is always reliable regardless
-    // of full/partial status. Only add a connector here if there isn't
-    // already a full-tank connector for this pair (avoid duplicates).
-    for (let i = 1; i < sortedAsc.length; i++) {
-      const prev = sortedAsc[i - 1];
-      const cur = sortedAsc[i];
+    for (let i = 1; i < sortedAscFuel.length; i++) {
+      const prev = sortedAscFuel[i - 1];
+      const cur = sortedAscFuel[i];
       const dist = cur.mileage - prev.mileage;
       if (dist <= 0) continue;
       if (!segmentAfter[cur.id]) {
@@ -1318,68 +1379,88 @@
 
     const sortedDesc = [...entries].sort((a, b) => b.mileage - a.mileage);
     sortedDesc.forEach((e) => {
-      const pricePerLiter = e.price / e.liters;
-      const fuelLabels = { E95: 'Euro95', E98: 'Euro98' };
-      const fuelClass = e.fuelType === 'E95' ? 'e95' : e.fuelType === 'E98' ? 'e98' : 'unknown';
-      const fuelLabel = fuelLabels[e.fuelType] || '';
+      const isOil = e.type === 'oil';
       const div = document.createElement('div');
-      div.className = 'entry';
+      div.className = `entry ${isOil ? 'entry-oil' : ''}`;
 
-      const TANK_CAPACITY = 50;
-      let emptinessBadge = '';
-      if (e.full && e.liters > 0) {
-        const pct = Math.round((e.liters / TANK_CAPACITY) * 100);
-        const pctCapped = Math.min(pct, 100);
-        const label = pctCapped >= 95 ? 'Nearly empty!' : `${pctCapped}% empty`;
-        emptinessBadge = `<span class="badge emptiness-badge" title="${e.liters}L of ${TANK_CAPACITY}L capacity">${label}</span>`;
+      if (isOil) {
+        div.innerHTML = `
+          <div style="flex:1; min-width:0;">
+            <div class="entry-top">
+              <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
+              <span class="fuel-badge oil">🛢️ Motorolie</span>
+            </div>
+            <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters, 1)} L bijgevuld</div>
+          </div>
+          <div class="entry-right">
+            ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
+            <button class="delete-btn" aria-label="Delete entry" data-id="${e.id}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+            </button>
+          </div>`;
+      } else {
+        const pricePerLiter = e.price / e.liters;
+        const fuelLabels = { E95: 'Euro95', E98: 'Euro98' };
+        const fuelClass = e.fuelType === 'E95' ? 'e95' : e.fuelType === 'E98' ? 'e98' : 'unknown';
+        const fuelLabel = fuelLabels[e.fuelType] || '';
+
+        const TANK_CAPACITY = 50;
+        let emptinessBadge = '';
+        if (e.full && e.liters > 0) {
+          const pct = Math.round((e.liters / TANK_CAPACITY) * 100);
+          const pctCapped = Math.min(pct, 100);
+          const label = pctCapped >= 95 ? 'Nearly empty!' : `${pctCapped}% empty`;
+          emptinessBadge = `<span class="badge emptiness-badge" title="${e.liters}L of ${TANK_CAPACITY}L capacity">${label}</span>`;
+        }
+
+        div.innerHTML = `
+          <div style="flex:1; min-width:0;">
+            <div class="entry-top">
+              <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
+              ${fuelLabel ? `<span class="fuel-badge ${fuelClass}">${fuelLabel}</span>` : ''}
+              ${emptinessBadge}
+              ${!e.full ? '<span class="badge">partial</span>' : ''}
+            </div>
+            <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
+          </div>
+          <div class="entry-right">
+            <span class="entry-price">€${formatNum(e.price, 2)}</span>
+            <button class="delete-btn" aria-label="Delete entry" data-id="${e.id}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+            </button>
+          </div>`;
       }
 
-      div.innerHTML = `
-        <div style="flex:1; min-width:0;">
-          <div class="entry-top">
-            <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
-            ${fuelLabel ? `<span class="fuel-badge ${fuelClass}">${fuelLabel}</span>` : ''}
-            ${emptinessBadge}
-            ${!e.full ? '<span class="badge">partial</span>' : ''}
-          </div>
-          <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(pricePerLiter, 3)}/L</div>
-        </div>
-        <div class="entry-right">
-          <span class="entry-price">€${formatNum(e.price, 2)}</span>
-          <button class="delete-btn" aria-label="Delete entry" data-id="${e.id}">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
-          </button>
-        </div>`;
       container.appendChild(div);
 
-      // If this entry starts a segment, insert a visual connector below
-      // it before the next entry is rendered.
-      const seg = segmentAfter[e.id];
-      if (seg) {
-        const connector = document.createElement('div');
-        connector.className = 'segment-connector';
-        const statsHtml = seg.reliable ? `
-            <span class="seg-divider"></span>
-            <span class="seg-stat">
-              <span class="seg-label">Verbruik</span>
-              ${formatNum(seg.consumption, 1)} L/100km
-            </span>
-            <span class="seg-divider"></span>
-            <span class="seg-stat">
-              <span class="seg-label">Kosten/km</span>
-              €${formatNum(seg.costPerKm, 3)}
-            </span>` : '';
-        connector.innerHTML = `
-          <div class="segment-line"></div>
-          <div class="segment-pill${seg.reliable ? '' : ' segment-pill-partial'}">
-            <span class="seg-stat">
-              <span class="seg-label">Gereden</span>
-              ${formatNum(seg.dist, 0)} km
-            </span>
-            ${statsHtml}
-          </div>
-          <div class="segment-line"></div>`;
-        container.appendChild(connector);
+      if (!isOil) {
+        const seg = segmentAfter[e.id];
+        if (seg) {
+          const connector = document.createElement('div');
+          connector.className = 'segment-connector';
+          const statsHtml = seg.reliable ? `
+              <span class="seg-divider"></span>
+              <span class="seg-stat">
+                <span class="seg-label">Verbruik</span>
+                ${formatNum(seg.consumption, 1)} L/100km
+              </span>
+              <span class="seg-divider"></span>
+              <span class="seg-stat">
+                <span class="seg-label">Kosten/km</span>
+                €${formatNum(seg.costPerKm, 3)}
+              </span>` : '';
+          connector.innerHTML = `
+            <div class="segment-line"></div>
+            <div class="segment-pill${seg.reliable ? '' : ' segment-pill-partial'}">
+              <span class="seg-stat">
+                <span class="seg-label">Gereden</span>
+                ${formatNum(seg.dist, 0)} km
+              </span>
+              ${statsHtml}
+            </div>
+            <div class="segment-line"></div>`;
+          container.appendChild(connector);
+        }
       }
     });
 
