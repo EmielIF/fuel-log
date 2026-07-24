@@ -351,9 +351,39 @@
     margin-bottom: 12px;
   }
 
+  /* ACCORDION STYLING VOOR JAREN */
+  details.year-group {
+    margin-bottom: 24px;
+  }
+  details.year-group > summary {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+    list-style: none;
+    outline: none;
+  }
+  details.year-group > summary::-webkit-details-marker { display: none; }
+  details.year-group > summary::after {
+    content: '▼';
+    font-size: 10px;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+    margin-left: 8px;
+  }
+  details.year-group[open] > summary::after { transform: rotate(180deg); }
+
   /* ACCORDION STYLING VOOR MAANDEN */
   details.month-group {
     margin-bottom: 16px;
+    margin-left: 4px;
   }
   details.month-group > summary {
     font-size: 10px;
@@ -371,17 +401,22 @@
     list-style: none;
     outline: none;
   }
-  details.month-group > summary::-webkit-details-marker {
-    display: none;
-  }
+  details.month-group > summary::-webkit-details-marker { display: none; }
   details.month-group > summary::after {
     content: '▼';
     font-size: 10px;
     color: var(--muted);
     transition: transform 0.2s ease;
+    margin-left: 8px;
   }
-  details.month-group[open] > summary::after {
-    transform: rotate(180deg);
+  details.month-group[open] > summary::after { transform: rotate(180deg); }
+
+  .summary-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+    padding-right: 8px;
   }
 
   .entry {
@@ -459,7 +494,6 @@
     </button>
   </div>
 
-  <!-- HOOFDFORMULIER (Alles In 1) -->
   <form class="panel" id="entryForm">
     <div class="panel-header">
       <h2 id="formHeaderTitle">Nieuwe tankbeurt</h2>
@@ -469,14 +503,12 @@
       </div>
     </div>
 
-    <!-- Toggle menuutje -->
     <div class="form-type-toggle" id="formTypeToggle" style="display:none;">
       <button type="button" class="form-type-btn active" data-type="oil">🛢️ Olie</button>
       <button type="button" class="form-type-btn" data-type="other">🛠️ Overig</button>
       <button type="button" class="form-type-btn" data-type="recurring">🗓️ Maandlasten</button>
     </div>
 
-    <!-- Gedeelde Odometer / Datum velden -->
     <div class="row" id="commonFields">
       <div>
         <label for="mileage">Odometer (km)</label>
@@ -488,7 +520,6 @@
       </div>
     </div>
 
-    <!-- BRANDSTOF VELDEN -->
     <div id="fuelFields">
       <div class="row three-col">
         <div>
@@ -520,7 +551,6 @@
       </label>
     </div>
 
-    <!-- OLIE VELDEN -->
     <div id="oilFields" style="display: none;">
       <div class="row">
         <div>
@@ -534,7 +564,6 @@
       </div>
     </div>
 
-    <!-- OVERIGE VELDEN -->
     <div id="otherFields" style="display: none;">
       <div style="margin-bottom: 12px;">
         <label for="otherTitle">Omschrijving (bijv. Aanschaf, APK, Banden)</label>
@@ -546,7 +575,6 @@
       </div>
     </div>
 
-    <!-- VASTE MAANDLASTEN VELDEN -->
     <div id="recurringFields" style="display: none;">
       <p style="font-size: 11px; color: var(--muted); margin-bottom: 16px; margin-top: -4px;">
         Vaste lasten worden vanaf de startdatum automatisch maandelijks aan je logboek toegevoegd. Wijziging in prijs? Verwijder de oude hier en start een nieuwe.
@@ -650,7 +678,6 @@
   const dateInput = document.getElementById('date');
   const submitBtn = document.getElementById('submitBtn');
   
-  // Fuel inputs
   const litersInput = document.getElementById('liters');
   const pplInput = document.getElementById('ppl');
   const priceInput = document.getElementById('price');
@@ -900,19 +927,6 @@
   }
 
   function render() {
-    // 1. Bereken de afstand gereden PER ENTRY voor de statistieken per maand.
-    // We doen dit door de entries eerst chronologisch (op kilometerstand) te sorteren.
-    const sortedByMileage = [...entries].sort((a, b) => a.mileage - b.mileage);
-    const distancePerEntry = {};
-    for (let i = 0; i < sortedByMileage.length; i++) {
-      if (i === 0) {
-        distancePerEntry[sortedByMileage[i].id] = 0;
-      } else {
-        distancePerEntry[sortedByMileage[i].id] = Math.max(0, sortedByMileage[i].mileage - sortedByMileage[i - 1].mileage);
-      }
-    }
-
-    // Algehele statistieken bovenaan
     const fuelEntries = entries.filter(e => e.type === 'fuel').sort((a, b) => a.mileage - b.mileage);
     const fullFillUps = fuelEntries.filter(e => e.full);
     let avgConsumption = null, totalDist = 0;
@@ -949,7 +963,6 @@
     container.innerHTML = '';
     document.getElementById('listLabel').textContent = `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}, per maand`;
 
-    // 2. Groeperen en Sorteren per maand
     const sortedDescByDate = [...entries].sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -960,86 +973,109 @@
 
     const monthNames = ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'];
     
-    // Maak eerst de groepen op de achtergrond aan
-    const groups = [];
-    let currentGroup = null;
+    const years = [];
+    let currentYear = null;
 
+    // Eerst de data strak groeperen per Jaar en daarna per Maand
     sortedDescByDate.forEach(e => {
       const d = new Date(e.date);
-      const monthStr = monthNames[d.getMonth()] + ' ' + d.getFullYear();
+      const yearStr = d.getFullYear().toString();
+      const monthStr = monthNames[d.getMonth()];
       
-      if (!currentGroup || currentGroup.monthStr !== monthStr) {
-        currentGroup = { monthStr: monthStr, entries: [], totalCost: 0, totalDist: 0 };
-        groups.push(currentGroup);
+      if (!currentYear || currentYear.yearStr !== yearStr) {
+        currentYear = { yearStr: yearStr, months: [], totalCost: 0 };
+        years.push(currentYear);
       }
-      currentGroup.entries.push(e);
-      currentGroup.totalCost += (e.price || 0);
-      currentGroup.totalDist += (distancePerEntry[e.id] || 0);
+      
+      let currentMonth = currentYear.months[currentYear.months.length - 1];
+      if (!currentMonth || currentMonth.monthStr !== monthStr) {
+        currentMonth = { monthStr: monthStr, entries: [], totalCost: 0 };
+        currentYear.months.push(currentMonth);
+      }
+      
+      currentMonth.entries.push(e);
+      currentMonth.totalCost += (e.price || 0);
+      currentYear.totalCost += (e.price || 0);
     });
 
-    // 3. Bouw de HTML op basis van de groepen
-    groups.forEach((group, index) => {
-      const details = document.createElement('details');
-      details.className = 'month-group';
-      
-      // Klap alleen de állereerste (de meest recente) maand standaard open
-      if (index === 0) {
-        details.open = true;
-      }
+    // Bouw de inklapbare (accordion) lijst op
+    years.forEach((yearGroup, yIndex) => {
+      const yearDetails = document.createElement('details');
+      yearDetails.className = 'year-group';
+      if (yIndex === 0) yearDetails.open = true;
 
-      const summary = document.createElement('summary');
-      summary.innerHTML = `
-        <div style="display:flex; align-items:baseline; gap: 12px;">
-          <span>${group.monthStr}</span>
-          <span style="color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: normal; text-transform: none; font-weight: 500;">
-            ${formatNum(group.totalDist, 0)} km &nbsp;·&nbsp; €${formatNum(group.totalCost, 2)}
+      const yearSummary = document.createElement('summary');
+      yearSummary.innerHTML = `
+        <div class="summary-content">
+          <span>${yearGroup.yearStr}</span>
+          <span style="color: var(--muted); font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: normal; text-transform: none;">
+            €${formatNum(yearGroup.totalCost, 2)}
           </span>
         </div>
       `;
-      details.appendChild(summary);
+      yearDetails.appendChild(yearSummary);
 
-      group.entries.forEach(e => {
-        const div = document.createElement('div');
-        div.className = `entry ${e.type === 'oil' ? 'entry-oil' : e.type === 'other' ? 'entry-other' : ''}`;
+      yearGroup.months.forEach((monthGroup, mIndex) => {
+        const monthDetails = document.createElement('details');
+        monthDetails.className = 'month-group';
+        if (yIndex === 0 && mIndex === 0) monthDetails.open = true;
 
-        if (e.type === 'oil') {
-          div.innerHTML = `
-            <div style="flex:1; min-width:0;">
-              <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge oil">🛢️ Motorolie</span></div>
-              <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters, 1)} L bijgevuld</div>
-            </div>
-            <div class="entry-right">
-              ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
-              <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
-            </div>`;
-        } 
-        else if (e.type === 'other') {
-          div.innerHTML = `
-            <div style="flex:1; min-width:0;">
-              <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge other">🛠️ Overig</span></div>
-              <div class="entry-meta">${formatDateDisplay(e.date)} · ${e.title}</div>
-            </div>
-            <div class="entry-right">
-              ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
-              <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
-            </div>`;
-        } 
-        else {
-          const emptinessBadge = (e.full && e.liters > 0) ? `<span class="badge emptiness-badge">${Math.min(Math.round((e.liters / 50) * 100), 100)}% empty</span>` : '';
-          div.innerHTML = `
-            <div style="flex:1; min-width:0;">
-              <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge ${e.fuelType==='E95'?'e95':'e98'}">${e.fuelType==='E95'?'Euro95':'Euro98'}</span>${emptinessBadge}${!e.full ? '<span class="badge">partial</span>' : ''}</div>
-              <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(e.price / e.liters, 3)}/L</div>
-            </div>
-            <div class="entry-right">
-              <span class="entry-price">€${formatNum(e.price, 2)}</span>
-              <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
-            </div>`;
-        }
-        details.appendChild(div);
+        const monthSummary = document.createElement('summary');
+        monthSummary.innerHTML = `
+          <div class="summary-content">
+            <span>${monthGroup.monthStr}</span>
+            <span style="color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; text-transform: none; letter-spacing: normal;">
+              €${formatNum(monthGroup.totalCost, 2)}
+            </span>
+          </div>
+        `;
+        monthDetails.appendChild(monthSummary);
+
+        monthGroup.entries.forEach(e => {
+          const div = document.createElement('div');
+          div.className = `entry ${e.type === 'oil' ? 'entry-oil' : e.type === 'other' ? 'entry-other' : ''}`;
+
+          if (e.type === 'oil') {
+            div.innerHTML = `
+              <div style="flex:1; min-width:0;">
+                <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge oil">🛢️ Motorolie</span></div>
+                <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters, 1)} L bijgevuld</div>
+              </div>
+              <div class="entry-right">
+                ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
+                <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
+              </div>`;
+          } 
+          else if (e.type === 'other') {
+            div.innerHTML = `
+              <div style="flex:1; min-width:0;">
+                <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge other">🛠️ Overig</span></div>
+                <div class="entry-meta">${formatDateDisplay(e.date)} · ${e.title}</div>
+              </div>
+              <div class="entry-right">
+                ${e.price ? `<span class="entry-price">€${formatNum(e.price, 2)}</span>` : ''}
+                <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
+              </div>`;
+          } 
+          else {
+            const emptinessBadge = (e.full && e.liters > 0) ? `<span class="badge emptiness-badge">${Math.min(Math.round((e.liters / 50) * 100), 100)}% empty</span>` : '';
+            div.innerHTML = `
+              <div style="flex:1; min-width:0;">
+                <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge ${e.fuelType==='E95'?'e95':'e98'}">${e.fuelType==='E95'?'Euro95':'Euro98'}</span>${emptinessBadge}${!e.full ? '<span class="badge">partial</span>' : ''}</div>
+                <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(e.price / e.liters, 3)}/L</div>
+              </div>
+              <div class="entry-right">
+                <span class="entry-price">€${formatNum(e.price, 2)}</span>
+                <button type="button" class="delete-btn" onclick="deleteEntry('${e.id}')">✕</button>
+              </div>`;
+          }
+          monthDetails.appendChild(div);
+        });
+        
+        yearDetails.appendChild(monthDetails);
       });
       
-      container.appendChild(details);
+      container.appendChild(yearDetails);
     });
   }
 
