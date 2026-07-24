@@ -167,7 +167,37 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* FUN FACTS STYLING */
+  .fun-facts {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 20px;
     margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .fun-facts-title {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .fun-fact-item {
+    font-size: 13px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fun-fact-item span {
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
   }
 
   .panel {
@@ -676,7 +706,6 @@
     </div>
   </div>
 
-  <!-- STATUS BARS VOOR APK & ONDERHOUD -->
   <div class="status-bars" id="statusBars" style="display:none;">
     <div class="stat-card" id="apkCard">
       <div class="stat-label">APK Vervaldatum</div>
@@ -686,6 +715,13 @@
       <div class="stat-label">Onderhoud over</div>
       <div class="stat-value mono" id="maintValue">—</div>
     </div>
+  </div>
+
+  <!-- FUN FACTS -->
+  <div class="fun-facts" id="funFactsCard" style="display:none;">
+    <div class="fun-facts-title">Fun Facts</div>
+    <div class="fun-fact-item" id="factFuelCost"></div>
+    <div class="fun-fact-item" id="factOilBottles"></div>
   </div>
 
   <div>
@@ -1063,6 +1099,19 @@
     document.getElementById('statOilBurn').innerHTML = avgOilBurn !== null ? `${formatNum(avgOilBurn, 2)}<span class="stat-unit">L/kkm</span>` : `—<span class="stat-unit">L/kkm</span>`;
     document.getElementById('statSpent').textContent = `€${formatNum(totalSpent, 2)}`;
     document.getElementById('statDistance').innerHTML = totalDist > 0 ? `${formatNum(totalDist, 0)}<span class="stat-unit">km</span>` : `—<span class="stat-unit">km</span>`;
+
+    // FUN FACTS BEREKENEN & TONEN
+    const funFactsCard = document.getElementById('funFactsCard');
+    const totalFuelSpent = fuelEntries.reduce((s, e) => s + (e.price || 0), 0);
+    const totalOilLiters = oilEntries.reduce((s, e) => s + (e.liters || 0), 0);
+
+    if (fuelEntries.length > 0 || oilEntries.length > 0) {
+      funFactsCard.style.display = 'flex';
+      document.getElementById('factFuelCost').innerHTML = `💡 Je hebt tot nu toe <span>€${formatNum(totalFuelSpent, 2)}</span> aan pure brandstof verstookt.`;
+      document.getElementById('factOilBottles').innerHTML = `🛢️ Je hebt al <span>${formatNum(totalOilLiters, 1)} liter</span> olie bijgevuld (${formatNum(totalOilLiters / 1, 1)} flessen van 1L).`;
+    } else {
+      funFactsCard.style.display = 'none';
+    }
 
     const statusBars = document.getElementById('statusBars');
     if (systemSettings.apk_date || systemSettings.maint_km) {
