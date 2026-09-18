@@ -170,7 +170,6 @@
     margin-bottom: 12px;
   }
 
-  /* FUN FACTS STYLING */
   .fun-facts {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -299,6 +298,35 @@
     margin-bottom: 6px;
   }
 
+  .label-with-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .currency-toggle {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .currency-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 600;
+    padding: 2px 6px;
+    cursor: pointer;
+  }
+  .currency-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
   input[type="text"], input[type="number"], input[type="date"], select {
     width: 100%;
     background: var(--bg);
@@ -391,7 +419,6 @@
     margin-bottom: 12px;
   }
 
-  /* ACCORDION STYLING VOOR JAREN */
   details.year-group {
     margin-bottom: 24px;
   }
@@ -420,7 +447,6 @@
   }
   details.year-group[open] > summary::after { transform: rotate(180deg); }
 
-  /* ACCORDION STYLING VOOR MAANDEN */
   details.month-group {
     margin-bottom: 16px;
     margin-left: 4px;
@@ -546,7 +572,7 @@
       <button type="button" class="btn-subtle" id="closeSettingsBtn">✕</button>
     </div>
     <p style="font-size: 11px; color: var(--muted); margin-bottom: 16px; margin-top: -4px;">
-      Vul hieronder de actuele vervaldatum van de APK in, en de kilometerstand waarop de auto weer toe is aan onderhoud.
+      Beheer hier je APK en onderhoudsinterval. De CHF-koers wordt nu automatisch live opgehaald!
     </p>
     <div class="row">
       <div>
@@ -595,15 +621,22 @@
           <input type="number" inputmode="decimal" step="0.01" id="liters" placeholder="42.5" />
         </div>
         <div>
-          <label for="ppl">€ / liter</label>
+          <div class="label-with-toggle">
+            <label for="ppl" id="pplLabel">€ / liter</label>
+            <div class="currency-toggle" id="currencyToggle">
+              <button type="button" class="currency-btn active" data-curr="EUR">EUR</button>
+              <button type="button" class="currency-btn" data-curr="CHF">CHF</button>
+            </div>
+          </div>
           <input type="number" inputmode="decimal" step="0.001" id="ppl" placeholder="1.950" />
         </div>
         <div>
-          <label for="price">Total (€)</label>
+          <label for="price" id="totalLabel">Total (€)</label>
           <input type="number" inputmode="decimal" step="0.01" id="price" placeholder="78.30" />
         </div>
       </div>
       <div class="autocalc-hint" id="autocalcHint"></div>
+      <div id="liveRateInfo" style="font-size: 10px; font-family: 'DM Mono', monospace; color: var(--muted); margin-top: -8px; margin-bottom: 12px; display: none;"></div>
 
       <div style="margin-bottom: 16px;">
         <label>Fuel type</label>
@@ -717,7 +750,6 @@
     </div>
   </div>
 
-  <!-- FUN FACTS -->
   <div class="fun-facts" id="funFactsCard" style="display:none;">
     <div class="fun-facts-title">Fun Facts</div>
     <div class="fun-fact-item" id="factFuelCost"></div>
@@ -757,6 +789,9 @@
   let formMode = 'fuel'; 
   let secondaryType = 'oil'; 
   let selectedFuel = 'E95';
+  
+  let selectedCurrency = localStorage.getItem('peugeot_preferred_currency') || 'EUR';
+  let liveChfRate = 1.06; // Fallback koers
 
   const entryForm = document.getElementById('entryForm');
   const settingsForm = document.getElementById('settingsForm');
@@ -778,6 +813,7 @@
   const litersInput = document.getElementById('liters');
   const pplInput = document.getElementById('ppl');
   const priceInput = document.getElementById('price');
+  const liveRateInfo = document.getElementById('liveRateInfo');
   
   function updateFormView() {
     formError.style.display = 'none';
@@ -840,6 +876,45 @@
     document.getElementById('fuelToggle').querySelectorAll('.fuel-option').forEach(b => b.classList.toggle('active', b === btn));
   });
 
+  // Valuta toggle & Live koers ophalen
+  document.getElementById('currencyToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('.currency-btn');
+    if (!btn) return;
+    selectedCurrency = btn.dataset.curr;
+    localStorage.setItem('peugeot_preferred_currency', selectedCurrency);
+    updateCurrencyUI();
+    if (selectedCurrency === 'CHF') fetchLiveChfRate();
+    runAutoCalc();
+  });
+
+  function updateCurrencyUI() {
+    document.getElementById('currencyToggle').querySelectorAll('.currency-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.curr === selectedCurrency);
+    });
+    document.getElementById('pplLabel').textContent = `${selectedCurrency} / liter`;
+    document.getElementById('totalLabel').textContent = `Total (${selectedCurrency})`;
+    
+    if (selectedCurrency === 'CHF') {
+      liveRateInfo.style.display = 'block';
+      if (!liveRateInfo.textContent) liveRateInfo.textContent = 'Live koers ophalen...';
+    } else {
+      liveRateInfo.style.display = 'none';
+    }
+  }
+
+  async function fetchLiveChfRate() {
+    try {
+      const res = await fetch('https://api.frankfurter.app/latest?from=CHF&to=EUR');
+      const data = await res.json();
+      if (data && data.rates && data.rates.EUR) {
+        liveChfRate = data.rates.EUR;
+        liveRateInfo.textContent = `⚡ Live koers: 1 CHF = €${liveChfRate.toFixed(3)}`;
+      }
+    } catch (err) {
+      liveRateInfo.textContent = `⚠️ Live koers mislukt, gebruikt fallback (${liveChfRate})`;
+    }
+  }
+
   let autoFilledField = null;
   function runAutoCalc() {
     const l = parseFloat(litersInput.value);
@@ -850,15 +925,15 @@
     if (!isNaN(l) && l > 0 && !isNaN(p) && p > 0 && (isNaN(t) || t <= 0 || autoFilledField === 'price')) {
       priceInput.value = (Math.round(l * p * 100) / 100).toFixed(2);
       autoFilledField = 'price';
-      hint.textContent = `Totaal berekend: ${l}L × €${p}/L`;
+      hint.textContent = `Totaal berekend: ${l}L × ${selectedCurrency} ${p}/L`;
     } else if (!isNaN(l) && l > 0 && !isNaN(t) && t > 0 && (isNaN(p) || p <= 0 || autoFilledField === 'ppl')) {
       pplInput.value = (Math.round((t / l) * 1000) / 1000).toFixed(3);
       autoFilledField = 'ppl';
-      hint.textContent = `Prijs/L berekend: €${t} ÷ ${l}L`;
+      hint.textContent = `Prijs/L berekend: ${selectedCurrency} ${t} ÷ ${l}L`;
     } else if (!isNaN(p) && p > 0 && !isNaN(t) && t > 0 && (isNaN(l) || l <= 0 || autoFilledField === 'liters')) {
       litersInput.value = (Math.round((t / p) * 100) / 100).toFixed(2);
       autoFilledField = 'liters';
-      hint.textContent = `Liters berekend: €${t} ÷ €${p}/L`;
+      hint.textContent = `Liters berekend: ${selectedCurrency} ${t} ÷ ${selectedCurrency} ${p}/L`;
     } else {
       hint.textContent = '';
     }
@@ -920,6 +995,11 @@
     document.getElementById('recDate').value = new Date().toISOString().slice(0, 10);
     formError.style.display = 'none';
     formMode = 'fuel';
+    
+    selectedCurrency = localStorage.getItem('peugeot_preferred_currency') || 'EUR';
+    updateCurrencyUI();
+    if (selectedCurrency === 'CHF') fetchLiveChfRate();
+
     updateFormView();
     if (entries.length > 0) {
       document.getElementById('mileage').placeholder = formatNum(Math.max(...entries.map(e => e.mileage)), 0) + ' (last)';
@@ -947,10 +1027,16 @@
 
     if (actualType === 'fuel') {
       let l = parseFloat(litersInput.value);
-      let p = parseFloat(priceInput.value);
+      let rawPrice = parseFloat(priceInput.value);
       if (!l || l <= 0) return showError('Enter a valid amount of fuel (liters).');
-      if (!p || p <= 0) return showError('Enter a valid total price.');
-      addEntry({ id: uid(), type: 'fuel', date: d, mileage: m, liters: l, price: p, full: document.getElementById('full').checked, fuelType: selectedFuel });
+      if (!rawPrice || rawPrice <= 0) return showError('Enter a valid total price.');
+      
+      let finalPrice = rawPrice;
+      if (selectedCurrency === 'CHF') {
+        finalPrice = Math.round(rawPrice * liveChfRate * 100) / 100;
+      }
+
+      addEntry({ id: uid(), type: 'fuel', date: d, mileage: m, liters: l, price: finalPrice, full: document.getElementById('full').checked, fuelType: selectedFuel });
     } 
     else if (actualType === 'oil') {
       let l = parseFloat(document.getElementById('oilLiters').value);
@@ -1100,7 +1186,6 @@
     document.getElementById('statSpent').textContent = `€${formatNum(totalSpent, 2)}`;
     document.getElementById('statDistance').innerHTML = totalDist > 0 ? `${formatNum(totalDist, 0)}<span class="stat-unit">km</span>` : `—<span class="stat-unit">km</span>`;
 
-    // FUN FACTS BEREKENEN & TONEN
     const funFactsCard = document.getElementById('funFactsCard');
     const totalFuelSpent = fuelEntries.reduce((s, e) => s + (e.price || 0), 0);
     const totalOilLiters = oilEntries.reduce((s, e) => s + (e.liters || 0), 0);
