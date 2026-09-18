@@ -572,7 +572,7 @@
       <button type="button" class="btn-subtle" id="closeSettingsBtn">✕</button>
     </div>
     <p style="font-size: 11px; color: var(--muted); margin-bottom: 16px; margin-top: -4px;">
-      Beheer hier je APK en onderhoudsinterval. De CHF-koers wordt nu automatisch live opgehaald!
+      Beheer hier je APK en onderhoudsinterval. De CHF-koers wordt automatisch live opgehaald!
     </p>
     <div class="row">
       <div>
@@ -876,7 +876,7 @@
     document.getElementById('fuelToggle').querySelectorAll('.fuel-option').forEach(b => b.classList.toggle('active', b === btn));
   });
 
-  // Valuta toggle & Live koers ophalen
+  // Valuta toggle & Live koers ophalen via open.er-api.com
   document.getElementById('currencyToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('.currency-btn');
     if (!btn) return;
@@ -904,7 +904,7 @@
 
   async function fetchLiveChfRate() {
     try {
-      const res = await fetch('https://api.frankfurter.app/latest?from=CHF&to=EUR');
+      const res = await fetch('https://open.er-api.com/v6/latest/CHF');
       const data = await res.json();
       if (data && data.rates && data.rates.EUR) {
         liveChfRate = data.rates.EUR;
