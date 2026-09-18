@@ -388,6 +388,7 @@
   .fuel-badge.recurring { color: var(--rec-accent); border: 1px solid #1e4620; background: rgba(74, 222, 128, 0.1); }
 
   .emptiness-badge { color: #a0c4ff; border-color: #1e3a5a; }
+  .efficiency-badge { color: var(--accent); border-color: rgba(247, 147, 62, 0.3); background: rgba(247, 147, 62, 0.08); }
 
   .error {
     font-size: 12px;
@@ -500,7 +501,7 @@
   .entry.entry-other { border-left: 3px solid var(--other-accent); }
   .entry.entry-recurring { border-left: 3px solid var(--rec-accent); }
 
-  .entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
   .entry-mileage { font-family: 'DM Mono', monospace; font-size: 14px; }
   
   .badge {
@@ -791,7 +792,7 @@
   let selectedFuel = 'E95';
   
   let selectedCurrency = localStorage.getItem('peugeot_preferred_currency') || 'EUR';
-  let liveChfRate = 1.06; // Fallback koers
+  let liveChfRate = 1.06;
 
   const entryForm = document.getElementById('entryForm');
   const settingsForm = document.getElementById('settingsForm');
@@ -876,7 +877,6 @@
     document.getElementById('fuelToggle').querySelectorAll('.fuel-option').forEach(b => b.classList.toggle('active', b === btn));
   });
 
-  // Valuta toggle & Live koers ophalen via open.er-api.com
   document.getElementById('currencyToggle').addEventListener('click', (e) => {
     const btn = e.target.closest('.currency-btn');
     if (!btn) return;
@@ -1155,6 +1155,31 @@
 
   function render() {
     const fuelEntries = entries.filter(e => e.type === 'fuel').sort((a, b) => a.mileage - b.mileage);
+
+    // Calculate actual interval consumption for full fill-ups
+    for (let i = 0; i < fuelEntries.length; i++) {
+      fuelEntries[i].intervalConsumption = null;
+      if (fuelEntries[i].full) {
+        let prevFullIdx = -1;
+        for (let j = i - 1; j >= 0; j--) {
+          if (fuelEntries[j].full) {
+            prevFullIdx = j;
+            break;
+          }
+        }
+        if (prevFullIdx !== -1) {
+          const prevFull = fuelEntries[prevFullIdx];
+          const dist = fuelEntries[i].mileage - prevFull.mileage;
+          if (dist > 0) {
+            const litersSum = fuelEntries
+              .filter(item => item.mileage > prevFull.mileage && item.mileage <= fuelEntries[i].mileage)
+              .reduce((s, item) => s + item.liters, 0);
+            fuelEntries[i].intervalConsumption = (litersSum / dist) * 100;
+          }
+        }
+      }
+    }
+
     const fullFillUps = fuelEntries.filter(e => e.full);
     let avgConsumption = null, totalDist = 0;
 
@@ -1350,9 +1375,22 @@
           } 
           else {
             const emptinessBadge = (e.full && e.liters > 0) ? `<span class="badge emptiness-badge">${Math.min(Math.round((e.liters / 50) * 100), 100)}% empty</span>` : '';
+            
+            // Show exact efficiency badge if calculated for this interval
+            let efficiencyBadge = '';
+            if (e.intervalConsumption !== null && e.intervalConsumption !== undefined) {
+              efficiencyBadge = `<span class="badge efficiency-badge">${formatNum(e.intervalConsumption)} L/100km</span>`;
+            }
+
             div.innerHTML = `
               <div style="flex:1; min-width:0;">
-                <div class="entry-top"><span class="entry-mileage">${formatNum(e.mileage, 0)} km</span><span class="fuel-badge ${e.fuelType==='E95'?'e95':'e98'}">${e.fuelType==='E95'?'Euro95':'Euro98'}</span>${emptinessBadge}${!e.full ? '<span class="badge">partial</span>' : ''}</div>
+                <div class="entry-top">
+                  <span class="entry-mileage">${formatNum(e.mileage, 0)} km</span>
+                  <span class="fuel-badge ${e.fuelType==='E95'?'e95':'e98'}">${e.fuelType==='E95'?'Euro95':'Euro98'}</span>
+                  ${emptinessBadge}
+                  ${efficiencyBadge}
+                  ${!e.full ? '<span class="badge">partial</span>' : ''}
+                </div>
                 <div class="entry-meta">${formatDateDisplay(e.date)} · ${formatNum(e.liters)} L · €${formatNum(e.price / e.liters, 3)}/L</div>
               </div>
               <div class="entry-right">
